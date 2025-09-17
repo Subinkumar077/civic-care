@@ -9,6 +9,7 @@ import InteractiveIssueMap from './pages/interactive-issue-map';
 import IssueReportingForm from './pages/issue-reporting-form';
 import PublicReportsListing from './pages/public-reports-listing';
 import PublicLandingPage from './pages/public-landing-page';
+import IssueDetail from './pages/IssueDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import { AuthProvider } from './contexts/AuthContext';
@@ -25,6 +26,7 @@ const Routes = () => {
             <Route path="/public-landing-page" element={<PublicLandingPage />} />
             <Route path="/public-reports-listing" element={<PublicReportsListing />} />
             <Route path="/interactive-issue-map" element={<InteractiveIssueMap />} />
+            <Route path="/issue/:id" element={<IssueDetail />} />
             
             {/* Form Routes */}
             <Route path="/issue-reporting-form" element={<IssueReportingForm />} />

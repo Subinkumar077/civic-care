@@ -1,5 +1,17 @@
 import { supabase } from '../lib/supabase';
 
+// Helper function to get Supabase storage URL for images
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  
+  // If it's already a full URL, return as is
+  if (imagePath.startsWith('http')) return imagePath;
+  
+  // Get the public URL from Supabase storage
+  const { data } = supabase.storage.from('issue-images').getPublicUrl(imagePath);
+  return data?.publicUrl || null;
+};
+
 export const civicIssueService = {
   // Get all civic issues with optional filters
   async getIssues(filters = {}) {
@@ -33,13 +45,18 @@ export const civicIssueService = {
         throw error;
       }
 
-      // Add vote counts and user interaction data
+      // Add vote counts and user interaction data, process image URLs
       const issuesWithCounts = data?.map(issue => ({
         ...issue,
         upvoteCount: issue?.issue_votes?.filter(vote => vote?.vote_type === 'upvote')?.length || 0,
         importantCount: issue?.issue_votes?.filter(vote => vote?.vote_type === 'important')?.length || 0,
         imageCount: issue?.issue_images?.length || 0,
-        updateCount: issue?.issue_updates?.length || 0
+        updateCount: issue?.issue_updates?.length || 0,
+        // Process image URLs
+        issue_images: issue?.issue_images?.map(image => ({
+          ...image,
+          image_url: image.image_url || getImageUrl(image.image_path)
+        })) || []
       }));
 
       return { data: issuesWithCounts, error: null };
@@ -65,6 +82,14 @@ export const civicIssueService = {
         throw error;
       }
 
+      // Process image URLs
+      if (data?.issue_images) {
+        data.issue_images = data.issue_images.map(image => ({
+          ...image,
+          image_url: image.image_url || getImageUrl(image.image_path)
+        }));
+      }
+
       return { data, error: null };
     } catch (error) {
       console.error('Error fetching issue:', error);
@@ -75,7 +100,9 @@ export const civicIssueService = {
   // Create a new civic issue
   async createIssue(issueData) {
     try {
-      const { data: { user } } = await supabase?.auth?.getUser();
+      // Get current user session
+      const { data: { session } } = await supabase?.auth?.getSession();
+      const user = session?.user;
       
       const issueToCreate = {
         title: issueData?.title,
@@ -83,13 +110,20 @@ export const civicIssueService = {
         category: issueData?.category,
         priority: issueData?.priority || 'medium',
         address: issueData?.location?.address,
-        latitude: issueData?.location?.coordinates?.lat,
-        longitude: issueData?.location?.coordinates?.lng,
-        reporter_id: user?.id,
-        reporter_name: issueData?.contactInfo?.name,
-        reporter_email: issueData?.contactInfo?.email,
-        reporter_phone: issueData?.contactInfo?.phone
+        latitude: issueData?.location?.coordinates?.lat || null,
+        longitude: issueData?.location?.coordinates?.lng || null,
+        reporter_id: user?.id || null,
+        reporter_name: issueData?.contactInfo?.name || user?.user_metadata?.full_name || user?.email?.split('@')?.[0],
+        reporter_email: issueData?.contactInfo?.email || user?.email,
+        reporter_phone: issueData?.contactInfo?.phone || user?.phone || null
       };
+
+      // Remove null/undefined values to avoid database issues
+      Object.keys(issueToCreate).forEach(key => {
+        if (issueToCreate[key] === undefined) {
+          delete issueToCreate[key];
+        }
+      });
 
       const { data, error } = await supabase?.from('civic_issues')?.insert([issueToCreate])?.select()?.single();
 
