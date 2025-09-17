@@ -4,7 +4,9 @@ import MetricsCard from './components/MetricsCard';
 import IssuesTable from './components/IssuesTable';
 import FilterToolbar from './components/FilterToolbar';
 import ActivityFeed from './components/ActivityFeed';
-import QuickActions from './components/QuickActions';
+import AssignmentModal from './components/AssignmentModal';
+import NotificationSettings from './components/NotificationSettings';
+
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCivicIssues } from '../../hooks/useCivicIssues';
@@ -32,6 +34,7 @@ const AdminDashboard = () => {
   const [departments, setDepartments] = useState([]);
   const [selectedIssues, setSelectedIssues] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
 
   // Load departments
   useEffect(() => {
@@ -72,43 +75,99 @@ const AdminDashboard = () => {
 
   // Handle issue status update
   const handleStatusUpdate = async (issueId, newStatus, comment) => {
-    const { success, error } = await updateIssueStatus(issueId, newStatus, comment);
-    
-    if (!success) {
-      alert(`Failed to update status: ${error}`);
+    try {
+      console.log('Starting status update:', { issueId, newStatus, comment });
+      
+      const result = await updateIssueStatus(issueId, newStatus, comment);
+      console.log('Status update result:', result);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update status');
+      }
+      
+      // Show success message without page refresh
+      alert(`Issue status updated to ${newStatus.replace('_', ' ')}`);
+      
+      // The hook should have already updated the local state
+      // No need to refresh the page
+      
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert(`Failed to update status: ${error.message}`);
+    }
+  };
+
+  // Handle assignment
+  const handleAssignment = async (issueIds, assignmentData) => {
+    try {
+      const { civicIssueService } = await import('../../services/civicIssueService');
+      
+      for (const issueId of issueIds) {
+        // Assign to department
+        await civicIssueService.assignToDepartment(issueId, assignmentData.departmentId);
+        
+        // Add assignment update
+        const message = `Assigned to ${assignmentData.assigneeName} (${assignmentData.assigneePhone})${assignmentData.message ? ': ' + assignmentData.message : ''}`;
+        await updateIssueStatus(issueId, 'assigned', message);
+      }
+      
+      setSelectedIssues([]);
+      setShowBulkActions(false);
+      alert(`Successfully assigned ${issueIds.length} issue(s)`);
+    } catch (error) {
+      throw new Error(`Assignment failed: ${error.message}`);
     }
   };
 
   // Handle bulk actions
   const handleBulkAction = async (action, selectedIds) => {
-    if (selectedIds?.length === 0) {
+    if (!selectedIds || selectedIds?.length === 0) {
       alert('Please select issues first');
       return;
     }
 
+    if (action === 'assign') {
+      setShowAssignmentModal(true);
+      return;
+    }
+
+    const actionLabels = {
+      'mark_in_review': 'mark as in review',
+      'mark_in_progress': 'mark as in progress', 
+      'mark_resolved': 'mark as resolved'
+    };
+
     const confirmed = window.confirm(
-      `Are you sure you want to ${action} ${selectedIds?.length} issue(s)?`
+      `Are you sure you want to ${actionLabels[action] || action} ${selectedIds?.length} issue(s)?`
     );
 
     if (!confirmed) return;
 
     try {
+      // Process each issue sequentially to avoid overwhelming the API
       for (const issueId of selectedIds) {
-        switch (action) {
-          case 'mark_in_review': await updateIssueStatus(issueId,'in_review', 'Bulk updated to in review');
-            break;
-          case 'mark_in_progress': await updateIssueStatus(issueId,'in_progress', 'Bulk updated to in progress');
-            break;
-          case 'mark_resolved': await updateIssueStatus(issueId,'resolved', 'Bulk resolved');
-            break;
-          default:
-            break;
+        try {
+          switch (action) {
+            case 'mark_in_review': 
+              await updateIssueStatus(issueId, 'in_review', 'Bulk updated to in review');
+              break;
+            case 'mark_in_progress': 
+              await updateIssueStatus(issueId, 'in_progress', 'Bulk updated to in progress');
+              break;
+            case 'mark_resolved': 
+              await updateIssueStatus(issueId, 'resolved', 'Bulk resolved');
+              break;
+            default:
+              break;
+          }
+        } catch (error) {
+          console.error(`Failed to update issue ${issueId}:`, error);
         }
       }
       
       setSelectedIssues([]);
       setShowBulkActions(false);
-      alert(`Successfully ${action?.replace('_', ' ')} ${selectedIds?.length} issue(s)`);
+      alert(`Successfully processed ${selectedIds?.length} issue(s)`);
     } catch (error) {
       alert(`Error performing bulk action: ${error?.message}`);
     }
@@ -183,14 +242,7 @@ const AdminDashboard = () => {
               </p>
             </div>
             
-            <QuickActions 
-              onAction={handleStatusUpdate}
-              departments={departments}
-              selectedIssues={selectedIssues}
-              onBulkAssign={handleBulkAction}
-              onBulkStatusUpdate={handleBulkAction}
-              onExportData={() => {}}
-            />
+
           </div>
         </div>
 
@@ -220,24 +272,35 @@ const AdminDashboard = () => {
                   
                   {/* Bulk Actions */}
                   {showBulkActions && (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <span className="text-sm text-muted-foreground">
                         {selectedIssues?.length} selected
                       </span>
-                      <select
-                        onChange={(e) => {
-                          if (e?.target?.value) {
-                            handleBulkAction(e?.target?.value, selectedIssues);
-                            e.target.value = '';
-                          }
-                        }}
-                        className="px-3 py-1 border border-border rounded text-sm"
-                      >
-                        <option value="">Bulk Actions</option>
-                        <option value="mark_in_review">Mark In Review</option>
-                        <option value="mark_in_progress">Mark In Progress</option>
-                        <option value="mark_resolved">Mark Resolved</option>
-                      </select>
+                      
+                      <div className="flex items-center space-x-2">
+                        <select
+                          onChange={(e) => {
+                            if (e?.target?.value) {
+                              handleBulkAction(e?.target?.value, selectedIssues);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="px-3 py-1 border border-border rounded text-sm"
+                        >
+                          <option value="">Status Actions</option>
+                          <option value="mark_in_review">Mark In Review</option>
+                          <option value="mark_in_progress">Mark In Progress</option>
+                          <option value="mark_resolved">Mark Resolved</option>
+                        </select>
+                        
+                        <button
+                          onClick={() => handleBulkAction('assign', selectedIssues)}
+                          className="px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/90 transition-colors flex items-center space-x-1"
+                        >
+                          <Icon name="UserCheck" size={14} />
+                          <span>Assign</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -271,22 +334,32 @@ const AdminDashboard = () => {
                   onSelectAll={handleSelectAll}
                   selectedIssues={selectedIssues}
                   departments={departments}
-                  onBulkAssign={handleBulkAction}
-                  onExport={() => {}}
                 />
               )}
             </div>
           </div>
 
           {/* Activity Feed */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <ActivityFeed 
               issues={issues?.slice(0, 10) || []} // Show recent 10 issues
               loading={loading}
               activities={[]}
             />
+            
+            {/* Notification Settings */}
+            <NotificationSettings />
           </div>
         </div>
+
+        {/* Assignment Modal */}
+        <AssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={() => setShowAssignmentModal(false)}
+          selectedIssues={selectedIssues}
+          departments={departments}
+          onAssign={handleAssignment}
+        />
       </div>
     </div>
   );

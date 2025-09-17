@@ -4,7 +4,7 @@ import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Input from '../../../components/ui/Input';
 
-const FilterToolbar = ({ onFilterChange, resultCount }) => {
+const FilterToolbar = ({ onFilterChange, resultCount, departments = [] }) => {
   const [filters, setFilters] = useState({
     status: '',
     category: '',
@@ -16,36 +16,40 @@ const FilterToolbar = ({ onFilterChange, resultCount }) => {
 
   const statusOptions = [
     { value: '', label: 'All Statuses' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'in-progress', label: 'In Progress' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'in_review', label: 'In Review' },
+    { value: 'assigned', label: 'Assigned' },
+    { value: 'in_progress', label: 'In Progress' },
     { value: 'resolved', label: 'Resolved' },
+    { value: 'closed', label: 'Closed' },
     { value: 'rejected', label: 'Rejected' }
   ];
 
   const categoryOptions = [
     { value: '', label: 'All Categories' },
-    { value: 'roads', label: 'Roads & Infrastructure' },
+    { value: 'roads', label: 'Roads & Transportation' },
     { value: 'sanitation', label: 'Sanitation & Waste' },
     { value: 'utilities', label: 'Utilities' },
-    { value: 'public-safety', label: 'Public Safety' },
+    { value: 'infrastructure', label: 'Infrastructure' },
+    { value: 'safety', label: 'Safety' },
     { value: 'environment', label: 'Environment' },
     { value: 'other', label: 'Other' }
   ];
 
   const departmentOptions = [
     { value: '', label: 'All Departments' },
-    { value: 'roads', label: 'Roads Department' },
-    { value: 'sanitation', label: 'Sanitation Department' },
-    { value: 'utilities', label: 'Utilities Department' },
-    { value: 'public-works', label: 'Public Works' },
-    { value: 'environment', label: 'Environment Department' }
+    ...departments.map(dept => ({
+      value: dept.id,
+      label: dept.name
+    }))
   ];
 
   const priorityOptions = [
     { value: '', label: 'All Priorities' },
-    { value: 'high', label: 'High Priority' },
-    { value: 'medium', label: 'Medium Priority' },
-    { value: 'low', label: 'Low Priority' }
+    { value: 'critical', label: 'Critical' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' }
   ];
 
   const dateRangeOptions = [

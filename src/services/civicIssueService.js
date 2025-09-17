@@ -3,10 +3,10 @@ import { supabase } from '../lib/supabase';
 // Helper function to get Supabase storage URL for images
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  
+
   // If it's already a full URL, return as is
   if (imagePath.startsWith('http')) return imagePath;
-  
+
   // Get the public URL from Supabase storage
   const { data } = supabase.storage.from('issue-images').getPublicUrl(imagePath);
   return data?.publicUrl || null;
@@ -40,7 +40,7 @@ export const civicIssueService = {
       }
 
       const { data, error } = await query;
-      
+
       if (error) {
         throw error;
       }
@@ -103,7 +103,7 @@ export const civicIssueService = {
       // Get current user session
       const { data: { session } } = await supabase?.auth?.getSession();
       const user = session?.user;
-      
+
       const issueToCreate = {
         title: issueData?.title,
         description: issueData?.description,
@@ -137,6 +137,19 @@ export const civicIssueService = {
         const uploadedImages = await this.uploadIssueImages(issue.id, issueData.images, user?.id);
         issue.issue_images = uploadedImages;
       }
+
+      // Send notifications after issue creation (non-blocking)
+      setTimeout(async () => {
+        try {
+          console.log('Attempting to send notifications for issue:', issue.id);
+          const { notificationService } = await import('./notificationService');
+          const result = await notificationService.sendIssueNotifications(issue, 'created');
+          console.log('Notification result:', result);
+        } catch (notificationError) {
+          console.error('Failed to send notifications:', notificationError);
+          // Notifications are optional - don't affect issue creation
+        }
+      }, 100); // Send notifications asynchronously
 
       return { data: issue, error: null };
     } catch (error) {
@@ -203,11 +216,11 @@ export const civicIssueService = {
   // Update issue status (admin only)
   async updateIssueStatus(issueId, status, comment = null) {
     try {
-      const { data, error } = await supabase?.from('civic_issues')?.update({ 
-          status,
-          updated_at: new Date()?.toISOString(),
-          ...(status === 'resolved' && { resolved_at: new Date()?.toISOString() })
-        })?.eq('id', issueId)?.select()?.single();
+      const { data, error } = await supabase?.from('civic_issues')?.update({
+        status,
+        updated_at: new Date()?.toISOString(),
+        ...(status === 'resolved' && { resolved_at: new Date()?.toISOString() })
+      })?.eq('id', issueId)?.select()?.single();
 
       if (error) {
         throw error;
@@ -217,6 +230,19 @@ export const civicIssueService = {
       if (comment) {
         await this.addIssueUpdate(issueId, status, comment);
       }
+
+      // Send status update notifications (non-blocking)
+      setTimeout(async () => {
+        try {
+          console.log('Attempting to send status update notifications for issue:', issueId);
+          const { notificationService } = await import('./notificationService');
+          const result = await notificationService.sendIssueNotifications(data, status);
+          console.log('Status notification result:', result);
+        } catch (notificationError) {
+          console.error('Failed to send status update notifications:', notificationError);
+          // Notifications are optional - don't affect status update
+        }
+      }, 100); // Send notifications asynchronously
 
       return { data, error: null };
     } catch (error) {
@@ -229,14 +255,14 @@ export const civicIssueService = {
   async addIssueUpdate(issueId, status, comment, isPublic = true) {
     try {
       const { data: { user } } = await supabase?.auth?.getUser();
-      
+
       const { data, error } = await supabase?.from('issue_updates')?.insert([{
-          issue_id: issueId,
-          status,
-          comment,
-          updated_by: user?.id,
-          is_public: isPublic
-        }])?.select(`
+        issue_id: issueId,
+        status,
+        comment,
+        updated_by: user?.id,
+        is_public: isPublic
+      }])?.select(`
           *,
           user_profiles(full_name)
         `)?.single();
@@ -256,7 +282,7 @@ export const civicIssueService = {
   async voteOnIssue(issueId, voteType = 'upvote') {
     try {
       const { data: { user } } = await supabase?.auth?.getUser();
-      
+
       if (!user) {
         throw new Error('Authentication required to vote');
       }
@@ -273,10 +299,10 @@ export const civicIssueService = {
       } else {
         // Add the vote
         const { data, error } = await supabase?.from('issue_votes')?.insert([{
-            issue_id: issueId,
-            user_id: user?.id,
-            vote_type: voteType
-          }])?.select()?.single();
+          issue_id: issueId,
+          user_id: user?.id,
+          vote_type: voteType
+        }])?.select()?.single();
 
         if (error) throw error;
         return { data: { action: 'added', vote: data }, error: null };
@@ -291,7 +317,7 @@ export const civicIssueService = {
   async getUserVotes(issueIds) {
     try {
       const { data: { user } } = await supabase?.auth?.getUser();
-      
+
       if (!user) {
         return { data: [], error: null };
       }
@@ -332,13 +358,13 @@ export const civicIssueService = {
       data?.forEach(issue => {
         // Count by status
         stats.byStatus[issue.status] = (stats?.byStatus?.[issue?.status] || 0) + 1;
-        
+
         // Count by category
         stats.byCategory[issue.category] = (stats?.byCategory?.[issue?.category] || 0) + 1;
-        
+
         // Count by priority
         stats.byPriority[issue.priority] = (stats?.byPriority?.[issue?.priority] || 0) + 1;
-        
+
         // Count recent issues
         if (new Date(issue.created_at) > oneWeekAgo) {
           stats.recentCount++;
@@ -355,18 +381,37 @@ export const civicIssueService = {
   // Real-time subscription for issue changes
   subscribeToIssueChanges(callback) {
     const subscription = supabase?.channel('civic_issues_changes')?.on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'civic_issues' 
-        },
-        (payload) => {
-          callback?.(payload);
-        }
-      )?.subscribe();
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'civic_issues'
+      },
+      (payload) => {
+        callback?.(payload);
+      }
+    )?.subscribe();
 
     return subscription;
+  },
+
+  // Assign issue to department
+  async assignToDepartment(issueId, departmentId) {
+    try {
+      const { data, error } = await supabase?.from('civic_issues')?.update({
+        assigned_department_id: departmentId,
+        updated_at: new Date()?.toISOString()
+      })?.eq('id', issueId)?.select()?.single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error assigning issue to department:', error);
+      return { data: null, error: error?.message };
+    }
   },
 
   // Unsubscribe from real-time changes
