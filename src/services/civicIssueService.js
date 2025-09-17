@@ -125,17 +125,79 @@ export const civicIssueService = {
         }
       });
 
-      const { data, error } = await supabase?.from('civic_issues')?.insert([issueToCreate])?.select()?.single();
+      // Create the issue first
+      const { data: issue, error } = await supabase?.from('civic_issues')?.insert([issueToCreate])?.select()?.single();
 
       if (error) {
         throw error;
       }
 
-      return { data, error: null };
+      // Upload images if any
+      if (issueData?.images && issueData.images.length > 0) {
+        const uploadedImages = await this.uploadIssueImages(issue.id, issueData.images, user?.id);
+        issue.issue_images = uploadedImages;
+      }
+
+      return { data: issue, error: null };
     } catch (error) {
       console.error('Error creating issue:', error);
       return { data: null, error: error?.message };
     }
+  },
+
+  // Upload images for an issue
+  async uploadIssueImages(issueId, images, userId) {
+    const uploadedImages = [];
+
+    for (const image of images) {
+      try {
+        // Generate unique filename
+        const fileExt = image.file.name.split('.').pop();
+        const fileName = `${issueId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+        // Upload to Supabase storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('issue-images')
+          .upload(fileName, image.file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          continue;
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('issue-images')
+          .getPublicUrl(fileName);
+
+        // Create image record in database
+        const { data: imageRecord, error: imageError } = await supabase
+          .from('issue_images')
+          .insert([{
+            issue_id: issueId,
+            image_path: fileName,
+            image_url: urlData.publicUrl,
+            caption: image.caption || null,
+            uploaded_by: userId
+          }])
+          .select()
+          .single();
+
+        if (imageError) {
+          console.error('Error creating image record:', imageError);
+          continue;
+        }
+
+        uploadedImages.push(imageRecord);
+      } catch (error) {
+        console.error('Error processing image:', error);
+      }
+    }
+
+    return uploadedImages;
   },
 
   // Update issue status (admin only)

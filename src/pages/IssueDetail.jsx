@@ -38,6 +38,25 @@ const IssueDetail = () => {
         }
     }, [id]);
 
+    // Handle escape key for modal
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && selectedImage) {
+                setSelectedImage(null);
+            }
+        };
+
+        if (selectedImage) {
+            document.addEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'unset';
+        };
+    }, [selectedImage]);
+
     const getStatusColor = (status) => {
         switch (status) {
             case 'submitted': return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -206,7 +225,11 @@ const IssueDetail = () => {
                                                                 src={image.image_url || image.image_path || `https://via.placeholder.com/400x300?text=Image+${index + 1}`}
                                                                 alt={image.caption || `Issue image ${index + 1}`}
                                                                 className="w-full h-48 object-cover transition-transform group-hover:scale-105 cursor-pointer"
-                                                                onClick={() => setSelectedImage(image)}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setSelectedImage(image);
+                                                                }}
                                                                 onError={(e) => {
                                                                     e.target.src = `https://via.placeholder.com/400x300?text=Image+Not+Available`;
                                                                 }}
@@ -371,19 +394,29 @@ const IssueDetail = () => {
             {selectedImage && (
                 <div
                     className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-                    onClick={() => setSelectedImage(null)}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setSelectedImage(null);
+                        }
+                    }}
                 >
-                    <div className="relative max-w-4xl max-h-full">
+                    <div
+                        className="relative max-w-4xl max-h-full"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <img
                             src={selectedImage.image_url || selectedImage.image_path}
                             alt={selectedImage.caption || 'Issue image'}
-                            className="max-w-full max-h-full object-contain rounded-lg"
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                         />
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white"
-                            onClick={() => setSelectedImage(null)}
+                            className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white border-0"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedImage(null);
+                            }}
                         >
                             <Icon name="X" size={20} />
                         </Button>
