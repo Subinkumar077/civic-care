@@ -20,7 +20,13 @@ const Login = () => {
   // Redirect if already logged in
   React.useEffect(() => {
     if (user) {
-      navigate('/public-landing-page');
+      // Get user role from metadata or profile and redirect accordingly
+      const userRole = user?.user_metadata?.role;
+      if (userRole === 'admin' || userRole === 'department_manager') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/public-landing-page');
+      }
     }
   }, [user, navigate]);
 
@@ -76,7 +82,13 @@ const Login = () => {
           setAuthError(error?.message || 'An error occurred during sign in. Please try again.');
         }
       } else if (data?.user) {
-        navigate('/public-landing-page');
+        // Redirect based on user role
+        const userRole = data?.user?.user_metadata?.role;
+        if (userRole === 'admin' || userRole === 'department_manager') {
+          navigate('/admin-dashboard');
+        } else {
+          navigate('/public-landing-page');
+        }
       }
     } catch (error) {
       console.error('Sign in error:', error);

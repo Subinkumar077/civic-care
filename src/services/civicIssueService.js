@@ -16,14 +16,125 @@ export const civicIssueService = {
   // Get all civic issues with optional filters
   async getIssues(filters = {}) {
     try {
+      console.log('🔍 Fetching issues with filters:', filters);
+      
+      // Start with a simple query first, then add joins if they exist
       let query = supabase?.from('civic_issues')?.select(`
-          *,
-          departments(name, contact_email),
-          user_profiles!reporter_id(full_name, email),
-          issue_images(id, image_path, image_url, caption),
-          issue_votes(vote_type),
-          issue_updates(status, comment, created_at, is_public)
+          *
         `)?.order('created_at', { ascending: false });
+
+      // Apply filters
+      if (filters?.category) {
+        query = query?.eq('category', filters?.category);
+      }
+      if (filters?.status) {
+        query = query?.eq('status', filters?.status);
+      }
+      if (filters?.priority) {
+        query = query?.eq('priority', filters?.priority);
+      }
+      if (filters?.limit) {
+        query = query?.limit(filters?.limit);
+      }
+
+      console.log('📊 Executing basic issues query...');
+      const { data: basicIssues, error: basicError } = await query;
+
+      if (basicError) {
+        console.error('❌ Basic issues query failed:', basicError);
+        throw basicError;
+      }
+
+      console.log('✅ Basic issues fetched:', basicIssues?.length || 0);
+
+      if (!basicIssues || basicIssues.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // Try to enhance with related data (non-blocking)
+      const enhancedIssues = await Promise.all(
+        basicIssues.map(async (issue) => {
+          try {
+            // Try to get user profile
+            let userProfile = null;
+            if (issue.reporter_id) {
+              const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('full_name, email')
+                .eq('id', issue.reporter_id)
+                .single();
+              userProfile = profile;
+            }
+
+            // Try to get images
+            let images = [];
+            try {
+              const { data: issueImages } = await supabase
+                .from('issue_images')
+                .select('id, image_path, image_url, caption')
+                .eq('issue_id', issue.id);
+              images = issueImages || [];
+            } catch (imageError) {
+              console.warn('Could not fetch images for issue:', issue.id);
+            }
+
+            // Try to get votes
+            let votes = [];
+            try {
+              const { data: issueVotes } = await supabase
+                .from('issue_votes')
+                .select('vote_type')
+                .eq('issue_id', issue.id);
+              votes = issueVotes || [];
+            } catch (voteError) {
+              console.warn('Could not fetch votes for issue:', issue.id);
+            }
+
+            // Try to get updates
+            let updates = [];
+            try {
+              const { data: issueUpdates } = await supabase
+                .from('issue_updates')
+                .select('status, comment, created_at, is_public')
+                .eq('issue_id', issue.id)
+                .eq('is_public', true)
+                .order('created_at', { ascending: false });
+              updates = issueUpdates || [];
+            } catch (updateError) {
+              console.warn('Could not fetch updates for issue:', issue.id);
+            }
+
+            return {
+              ...issue,
+              user_profiles: userProfile,
+              issue_images: images.map(image => ({
+                ...image,
+                image_url: image.image_url || getImageUrl(image.image_path)
+              })),
+              issue_votes: votes,
+              issue_updates: updates,
+              upvoteCount: votes.filter(vote => vote.vote_type === 'upvote').length || 0,
+              importantCount: votes.filter(vote => vote.vote_type === 'important').length || 0,
+              imageCount: images.length || 0,
+              updateCount: updates.length || 0
+            };
+          } catch (enhanceError) {
+            console.warn('Could not enhance issue:', issue.id, enhanceError);
+            // Return basic issue if enhancement fails
+            return {
+              ...issue,
+              user_profiles: null,
+              issue_images: [],
+              issue_votes: [],
+              issue_updates: [],
+              upvoteCount: 0,
+              importantCount: 0,
+              imageCount: 0,
+              updateCount: 0
+            };
+          }
+        })
+      );
 
       // Apply filters
       if (filters?.category) {
@@ -45,21 +156,8 @@ export const civicIssueService = {
         throw error;
       }
 
-      // Add vote counts and user interaction data, process image URLs
-      const issuesWithCounts = data?.map(issue => ({
-        ...issue,
-        upvoteCount: issue?.issue_votes?.filter(vote => vote?.vote_type === 'upvote')?.length || 0,
-        importantCount: issue?.issue_votes?.filter(vote => vote?.vote_type === 'important')?.length || 0,
-        imageCount: issue?.issue_images?.length || 0,
-        updateCount: issue?.issue_updates?.length || 0,
-        // Process image URLs
-        issue_images: issue?.issue_images?.map(image => ({
-          ...image,
-          image_url: image.image_url || getImageUrl(image.image_path)
-        })) || []
-      }));
-
-      return { data: issuesWithCounts, error: null };
+      console.log('✅ Issues enhanced successfully');
+      return { data: enhancedIssues, error: null };
     } catch (error) {
       console.error('Error fetching civic issues:', error);
       return { data: null, error: error?.message };
@@ -97,64 +195,171 @@ export const civicIssueService = {
     }
   },
 
-  // Create a new civic issue
+  // Create a new civic issue - ROBUST VERSION
   async createIssue(issueData) {
+    console.log('🚀 Creating issue with robust error handling...');
+    
     try {
-      // Get current user session
-      const { data: { session } } = await supabase?.auth?.getSession();
-      const user = session?.user;
+      // Step 1: Validate input data
+      if (!issueData?.title || !issueData?.description || !issueData?.category || !issueData?.location?.address) {
+        throw new Error('Missing required fields: title, description, category, or location');
+      }
 
+      // Step 2: Get current user session
+      const { data: { session }, error: sessionError } = await supabase?.auth?.getSession();
+      
+      if (sessionError) {
+        throw new Error(`Session error: ${sessionError.message}`);
+      }
+
+      if (!session?.user) {
+        throw new Error('User not authenticated. Please log in to submit a report.');
+      }
+
+      const user = session.user;
+      console.log('✅ User authenticated:', user.email);
+
+      // Step 3: Get user profile (with fallback)
+      let userProfile = null;
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (!profileError) {
+          userProfile = profile;
+          console.log('✅ User profile loaded');
+        } else {
+          console.warn('⚠️ Could not load user profile:', profileError.message);
+        }
+      } catch (profileFetchError) {
+        console.warn('⚠️ Profile fetch failed:', profileFetchError.message);
+      }
+
+      // Step 4: Prepare issue data with robust fallbacks
       const issueToCreate = {
-        title: issueData?.title,
-        description: issueData?.description,
-        category: issueData?.category,
-        priority: issueData?.priority || 'medium',
-        address: issueData?.location?.address,
-        latitude: issueData?.location?.coordinates?.lat || null,
-        longitude: issueData?.location?.coordinates?.lng || null,
-        reporter_id: user?.id || null,
-        reporter_name: issueData?.contactInfo?.name || user?.user_metadata?.full_name || user?.email?.split('@')?.[0],
-        reporter_email: issueData?.contactInfo?.email || user?.email,
-        reporter_phone: issueData?.contactInfo?.phone || user?.phone || null
+        title: String(issueData.title).trim(),
+        description: String(issueData.description).trim(),
+        category: issueData.category,
+        priority: issueData.priority || 'medium',
+        status: 'submitted',
+        address: String(issueData.location.address).trim(),
+        latitude: issueData.location.coordinates?.lat || null,
+        longitude: issueData.location.coordinates?.lng || null,
+        reporter_id: user.id,
+        reporter_name: issueData.contactInfo?.name || 
+                     userProfile?.full_name || 
+                     user.user_metadata?.full_name || 
+                     user.email.split('@')[0],
+        reporter_email: issueData.contactInfo?.email || 
+                       userProfile?.email || 
+                       user.email,
+        reporter_phone: issueData.contactInfo?.phone || 
+                       userProfile?.phone || 
+                       user.user_metadata?.phone || 
+                       null,
+        created_at: new Date().toISOString()
       };
 
-      // Remove null/undefined values to avoid database issues
+      console.log('📱 Phone number for notifications:', issueToCreate.reporter_phone);
+      console.log('📝 Issue data prepared:', {
+        title: issueToCreate.title,
+        category: issueToCreate.category,
+        address: issueToCreate.address,
+        reporter_email: issueToCreate.reporter_email
+      });
+
+      // Step 5: Remove undefined values
       Object.keys(issueToCreate).forEach(key => {
         if (issueToCreate[key] === undefined) {
           delete issueToCreate[key];
         }
       });
 
-      // Create the issue first
-      const { data: issue, error } = await supabase?.from('civic_issues')?.insert([issueToCreate])?.select()?.single();
+      // Step 6: Create the issue in database
+      console.log('💾 Inserting issue into database...');
+      const { data: issue, error: insertError } = await supabase
+        .from('civic_issues')
+        .insert([issueToCreate])
+        .select()
+        .single();
 
-      if (error) {
-        throw error;
+      if (insertError) {
+        console.error('❌ Database insertion failed:', insertError);
+        
+        // Provide user-friendly error messages
+        if (insertError.message.includes('permission denied')) {
+          throw new Error('Permission denied. Please ensure you are logged in and try again.');
+        } else if (insertError.message.includes('violates check constraint')) {
+          throw new Error('Invalid data provided. Please check all required fields and try again.');
+        } else if (insertError.message.includes('duplicate key')) {
+          throw new Error('A similar report already exists. Please check existing reports.');
+        } else {
+          throw new Error(`Database error: ${insertError.message}`);
+        }
       }
 
-      // Upload images if any
+      console.log('✅ Issue created successfully:', issue.id);
+
+      // Step 7: Handle image uploads (non-blocking)
       if (issueData?.images && issueData.images.length > 0) {
-        const uploadedImages = await this.uploadIssueImages(issue.id, issueData.images, user?.id);
-        issue.issue_images = uploadedImages;
+        console.log('📸 Processing image uploads...');
+        try {
+          const uploadedImages = await this.uploadIssueImages(issue.id, issueData.images, user.id);
+          issue.issue_images = uploadedImages;
+          console.log(`✅ Images uploaded: ${uploadedImages.length}/${issueData.images.length}`);
+        } catch (imageError) {
+          console.error('⚠️ Image upload failed (non-critical):', imageError);
+          // Don't fail the issue creation for image upload errors
+        }
       }
 
-      // Send notifications after issue creation (non-blocking)
+      // Step 8: Send notifications (non-blocking)
+      console.log('📱 Scheduling notifications...');
       setTimeout(async () => {
         try {
-          console.log('Attempting to send notifications for issue:', issue.id);
           const { notificationService } = await import('./notificationService');
           const result = await notificationService.sendIssueNotifications(issue, 'created');
-          console.log('Notification result:', result);
+          console.log('📨 Notification result:', result);
+          
+          if (result.user?.success) {
+            console.log('✅ User WhatsApp notification sent successfully');
+          } else {
+            console.warn('⚠️ User notification failed:', result.user?.error);
+          }
+          
+          if (result.admin?.success) {
+            console.log('✅ Admin WhatsApp notification sent successfully');
+          } else {
+            console.warn('⚠️ Admin notification failed:', result.admin?.error);
+          }
         } catch (notificationError) {
-          console.error('Failed to send notifications:', notificationError);
+          console.error('📱 Notification error (non-critical):', notificationError);
           // Notifications are optional - don't affect issue creation
         }
-      }, 100); // Send notifications asynchronously
+      }, 500); // Small delay to ensure issue is fully created
 
-      return { data: issue, error: null };
+      return { data: issue, error: null, success: true };
+
     } catch (error) {
-      console.error('Error creating issue:', error);
-      return { data: null, error: error?.message };
+      console.error('💥 Issue creation failed:', error);
+      
+      // Return user-friendly error message
+      let errorMessage = error.message;
+      
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message.includes('JWT')) {
+        errorMessage = 'Session expired. Please log in again.';
+      }
+      
+      return { 
+        data: null, 
+        error: errorMessage, 
+        success: false 
+      };
     }
   },
 

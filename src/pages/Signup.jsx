@@ -29,7 +29,7 @@ const Signup = () => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear errors when user starts typing
     if (errors?.[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -80,7 +80,7 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -88,6 +88,9 @@ const Signup = () => {
     setSuccessMessage('');
 
     try {
+      console.log('🚀 Starting signup process for:', formData?.email);
+
+      // Step 1: Create the user account
       const { data, error } = await supabase?.auth?.signUp({
         email: formData?.email,
         password: formData?.password,
@@ -100,32 +103,105 @@ const Signup = () => {
         }
       });
 
+      console.log('📝 Signup response:', { data, error });
+
       if (error) {
+        console.error('❌ Signup error:', error);
         if (error?.message?.includes('User already registered')) {
           setAuthError('An account with this email already exists. Please sign in instead.');
-        } else if (error?.message?.includes('Failed to fetch') || 
-                   error?.message?.includes('AuthRetryableFetchError')) {
+        } else if (error?.message?.includes('Failed to fetch') ||
+          error?.message?.includes('AuthRetryableFetchError')) {
           setAuthError('Cannot connect to authentication service. Your Supabase project may be paused or inactive. Please check your Supabase dashboard and resume your project if needed.');
         } else {
           setAuthError(error?.message || 'An error occurred during sign up. Please try again.');
         }
-      } else if (data?.user) {
-        if (data?.user?.email_confirmed_at) {
-          // User is immediately confirmed
-          setSuccessMessage('Account created successfully! You can now sign in.');
-          setTimeout(() => {
-            navigate('/login');
-          }, 2000);
+        return;
+      }
+
+      if (!data?.user) {
+        console.error('❌ No user data returned from signup');
+        setAuthError('Account creation failed. Please try again.');
+        return;
+      }
+
+      console.log('✅ User created successfully:', data.user.id);
+
+      // Step 2: Create user profile manually (in case trigger doesn't work)
+      try {
+        console.log('👤 Creating user profile...');
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert([{
+            id: data.user.id,
+            email: formData?.email,
+            full_name: formData?.fullName,
+            role: formData?.role,
+            phone: formData?.phone || null
+          }]);
+
+        if (profileError && !profileError.message.includes('duplicate key')) {
+          console.warn('⚠️ Profile creation failed:', profileError);
+          // Don't fail the signup for this
         } else {
-          // User needs to confirm email
-          setSuccessMessage('Account created successfully! Please check your email to confirm your account before signing in.');
+          console.log('✅ User profile created successfully');
+        }
+      } catch (profileCreationError) {
+        console.warn('⚠️ Profile creation error:', profileCreationError);
+        // Don't fail the signup for this
+      }
+
+      // Step 3: Show success message and handle redirection
+      if (data?.user?.email_confirmed_at) {
+        // User is immediately confirmed - try to sign them in
+        console.log('🔐 User confirmed, attempting automatic sign in...');
+
+        setSuccessMessage('🎉 Account created successfully! Signing you in...');
+
+        // Wait a moment for the profile to be created
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        try {
+          const { data: signInData, error: signInError } = await supabase?.auth?.signInWithPassword({
+            email: formData?.email,
+            password: formData?.password
+          });
+
+          if (signInError) {
+            console.error('❌ Auto sign-in failed:', signInError);
+            setSuccessMessage('🎉 Account created successfully! Please sign in with your credentials.');
+            setTimeout(() => {
+              navigate('/login');
+            }, 3000);
+          } else {
+            console.log('✅ Auto sign-in successful, redirecting...');
+            setSuccessMessage('🎉 Account created successfully! Redirecting to your dashboard...');
+            setTimeout(() => {
+              const userRole = formData?.role;
+              if (userRole === 'admin' || userRole === 'department_manager') {
+                navigate('/admin-dashboard');
+              } else {
+                navigate('/public-landing-page');
+              }
+            }, 2000);
+          }
+        } catch (autoSignInError) {
+          console.error('❌ Auto sign-in error:', autoSignInError);
+          setSuccessMessage('🎉 Account created successfully! Please sign in with your credentials.');
           setTimeout(() => {
             navigate('/login');
           }, 3000);
         }
+      } else {
+        // User needs to confirm email
+        console.log('📧 Email confirmation required');
+        setSuccessMessage('🎉 Account created successfully! Please check your email to confirm your account before signing in.');
+        setTimeout(() => {
+          navigate('/login');
+        }, 4000);
       }
+
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('💥 Unexpected signup error:', error);
       setAuthError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -272,8 +348,8 @@ const Signup = () => {
             <div className="text-center mt-6 pt-6 border-t border-border">
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
-                <Link 
-                  to="/login" 
+                <Link
+                  to="/login"
                   className="text-primary hover:underline font-medium"
                 >
                   Sign in here

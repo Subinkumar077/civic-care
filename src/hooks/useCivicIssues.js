@@ -16,7 +16,7 @@ export const useCivicIssues = (filters = {}) => {
 
     try {
       const { data, error: issueError } = await civicIssueService?.getIssues(filters);
-      
+
       if (issueError) {
         setError(issueError);
         return;
@@ -28,13 +28,13 @@ export const useCivicIssues = (filters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [JSON.stringify(filters)]); // Use JSON.stringify to prevent object reference issues
 
   // Load statistics
   const loadStats = useCallback(async () => {
     try {
       const { data, error: statsError } = await civicIssueService?.getIssuesStats();
-      
+
       if (statsError) {
         console.error('Error loading stats:', statsError);
         return;
@@ -51,7 +51,7 @@ export const useCivicIssues = (filters = {}) => {
     try {
       setError(null);
       const { data, error: createError } = await civicIssueService?.createIssue(issueData);
-      
+
       if (createError) {
         setError(createError);
         return { success: false, error: createError };
@@ -59,10 +59,10 @@ export const useCivicIssues = (filters = {}) => {
 
       // Add to local state
       setIssues(prev => [data, ...prev]);
-      
+
       // Refresh stats
       loadStats();
-      
+
       return { success: true, data };
     } catch (err) {
       setError(err?.message);
@@ -75,24 +75,24 @@ export const useCivicIssues = (filters = {}) => {
     try {
       setError(null);
       const { data, error: updateError } = await civicIssueService?.updateIssueStatus(
-        issueId, 
-        status, 
+        issueId,
+        status,
         comment
       );
-      
+
       if (updateError) {
         setError(updateError);
         return { success: false, error: updateError };
       }
 
       // Update local state
-      setIssues(prev => prev?.map(issue => 
+      setIssues(prev => prev?.map(issue =>
         issue?.id === issueId ? { ...issue, ...data } : issue
       ));
-      
+
       // Refresh stats
       loadStats();
-      
+
       return { success: true, data };
     } catch (err) {
       setError(err?.message);
@@ -110,7 +110,7 @@ export const useCivicIssues = (filters = {}) => {
     try {
       setError(null);
       const { data, error: voteError } = await civicIssueService?.voteOnIssue(issueId, voteType);
-      
+
       if (voteError) {
         setError(voteError);
         return { success: false, error: voteError };
@@ -119,11 +119,11 @@ export const useCivicIssues = (filters = {}) => {
       // Update local state - refresh the specific issue
       const { data: updatedIssue } = await civicIssueService?.getIssueById(issueId);
       if (updatedIssue) {
-        setIssues(prev => prev?.map(issue => 
+        setIssues(prev => prev?.map(issue =>
           issue?.id === issueId ? updatedIssue : issue
         ));
       }
-      
+
       return { success: true, data };
     } catch (err) {
       setError(err?.message);
@@ -136,12 +136,12 @@ export const useCivicIssues = (filters = {}) => {
     try {
       setError(null);
       const { data, error: updateError } = await civicIssueService?.addIssueUpdate(
-        issueId, 
-        status, 
-        comment, 
+        issueId,
+        status,
+        comment,
         isPublic
       );
-      
+
       if (updateError) {
         setError(updateError);
         return { success: false, error: updateError };
@@ -150,11 +150,11 @@ export const useCivicIssues = (filters = {}) => {
       // Update local state - refresh the specific issue
       const { data: updatedIssue } = await civicIssueService?.getIssueById(issueId);
       if (updatedIssue) {
-        setIssues(prev => prev?.map(issue => 
+        setIssues(prev => prev?.map(issue =>
           issue?.id === issueId ? updatedIssue : issue
         ));
       }
-      
+
       return { success: true, data };
     } catch (err) {
       setError(err?.message);
@@ -169,13 +169,13 @@ export const useCivicIssues = (filters = {}) => {
     if (issues?.length > 0) {
       subscription = civicIssueService?.subscribeToIssueChanges((payload) => {
         const { eventType, new: newRecord, old: oldRecord } = payload;
-        
+
         setIssues(prev => {
           switch (eventType) {
             case 'INSERT':
               return [newRecord, ...prev];
             case 'UPDATE':
-              return prev?.map(issue => 
+              return prev?.map(issue =>
                 issue?.id === newRecord?.id ? { ...issue, ...newRecord } : issue
               );
             case 'DELETE':
@@ -197,11 +197,11 @@ export const useCivicIssues = (filters = {}) => {
     };
   }, [issues?.length, loadStats]);
 
-  // Initial load
+  // Initial load - only run once on mount and when filters change
   useEffect(() => {
     loadIssues();
     loadStats();
-  }, [loadIssues, loadStats]);
+  }, [JSON.stringify(filters)]); // Only depend on filters, not the functions
 
   return {
     issues,

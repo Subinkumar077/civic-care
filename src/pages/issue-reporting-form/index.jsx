@@ -13,11 +13,13 @@ import FormProgress from './components/FormProgress';
 import ReportingTips from './components/ReportingTips';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCivicIssues } from '../../hooks/useCivicIssues';
+import { useToast } from '../../components/ui/Toast';
 
 const IssueReportingForm = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { createIssue } = useCivicIssues();
+  const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -129,7 +131,7 @@ const IssueReportingForm = () => {
   // Handle form submission
   const handleSubmit = async (e) => {
     e?.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -138,23 +140,34 @@ const IssueReportingForm = () => {
     setSubmitError('');
 
     try {
-      const { success, data, error } = await createIssue(formData);
+      console.log('🚀 Submitting issue report...');
       
-      if (!success) {
-        setSubmitError(error || 'Failed to submit report. Please try again.');
+      const result = await createIssue(formData);
+
+      if (!result.success) {
+        console.error('❌ Issue submission failed:', result.error);
+        setSubmitError(result.error || 'Failed to submit report. Please try again.');
+        showToast('Failed to submit report. Please try again.', 'error');
         return;
       }
+
+      console.log('✅ Issue submitted successfully:', result.data);
       
+      // Show success toast immediately
+      showToast('🎉 Report submitted successfully! You will receive WhatsApp confirmation shortly.', 'success', 5000);
+      
+      // Show the success page
       setShowSuccessMessage(true);
-      
+
       // Redirect after success message
       setTimeout(() => {
         navigate('/public-reports-listing');
       }, 3000);
-      
+
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error('💥 Submission error:', error);
       setSubmitError('Failed to submit report. Please try again.');
+      showToast('An unexpected error occurred. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,7 +176,7 @@ const IssueReportingForm = () => {
   // Handle draft save
   const handleSaveDraft = async () => {
     setIsDraftSaving(true);
-    
+
     try {
       // Store draft in localStorage for now
       const draftKey = `civic_issue_draft_${user?.id || 'anonymous'}`;
@@ -171,7 +184,7 @@ const IssueReportingForm = () => {
         ...formData,
         savedAt: new Date()?.toISOString()
       }));
-      
+
       alert('Draft saved successfully!');
     } catch (error) {
       console.error('Draft save error:', error);
@@ -197,7 +210,7 @@ const IssueReportingForm = () => {
       ...prev,
       [field]: value
     }));
-    
+
     // Clear error when user starts typing
     if (errors?.[field]) {
       setErrors(prev => ({
@@ -215,7 +228,7 @@ const IssueReportingForm = () => {
         [field]: value
       }
     }));
-    
+
     // Clear error when user starts typing
     const errorKey = `contact${field?.charAt(0)?.toUpperCase() + field?.slice(1)}`;
     if (errors?.[errorKey]) {
@@ -234,10 +247,18 @@ const IssueReportingForm = () => {
           <div className="max-w-md mx-auto text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-8">
               <Icon name="CheckCircle" size={48} className="mx-auto text-green-500 mb-4" />
-              <h2 className="text-xl font-bold text-green-700 mb-2">Report Submitted Successfully!</h2>
+              <h2 className="text-xl font-bold text-green-700 mb-2">🎉 Report Submitted Successfully!</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Your issue has been submitted and is being reviewed. You'll receive updates via email and SMS.
+                Your issue has been submitted and is being reviewed. You'll receive WhatsApp and SMS updates about the progress.
               </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center space-x-2">
+                  <Icon name="MessageCircle" size={16} className="text-blue-500" />
+                  <p className="text-xs text-blue-700 font-medium">
+                    WhatsApp confirmation sent to your registered number
+                  </p>
+                </div>
+              </div>
               <div className="space-y-2">
                 <p className="text-xs text-gray-500">
                   Report ID: <span className="font-mono font-medium">RPT-{Date.now()}</span>
@@ -258,7 +279,7 @@ const IssueReportingForm = () => {
       <Header />
       <div className="container mx-auto px-4 py-6">
         <Breadcrumb />
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Form */}
           <div className="lg:col-span-3">
@@ -288,7 +309,7 @@ const IssueReportingForm = () => {
                       <div>
                         <h3 className="text-sm font-medium text-blue-800">Anonymous Reporting</h3>
                         <p className="text-sm text-blue-700 mt-1">
-                          You're reporting anonymously. Consider <button 
+                          You're reporting anonymously. Consider <button
                             type="button"
                             onClick={() => navigate('/login')}
                             className="underline hover:no-underline font-medium"
@@ -346,21 +367,20 @@ const IssueReportingForm = () => {
                     <h3 className="text-sm font-medium text-text-primary">Issue Description</h3>
                     <span className="text-accent">*</span>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <textarea
                       placeholder="Provide detailed description of the issue, including when it started, how it affects you, and any other relevant information..."
                       value={formData?.description}
                       onChange={(e) => handleInputChange('description', e?.target?.value)}
                       rows={6}
-                      className={`w-full px-3 py-2 border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-smooth resize-vertical ${
-                        errors?.description ? 'border-destructive' : 'border-border'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-smooth resize-vertical ${errors?.description ? 'border-destructive' : 'border-border'
+                        }`}
                     />
                     {errors?.description && (
                       <p className="text-sm text-destructive">{errors?.description}</p>
                     )}
-                    
+
                     {/* Voice Input */}
                     <VoiceInput
                       onTranscript={handleVoiceTranscript}
@@ -399,11 +419,10 @@ const IssueReportingForm = () => {
                         key={priority?.value}
                         type="button"
                         onClick={() => handleInputChange('priority', priority?.value)}
-                        className={`p-3 border rounded-md text-center transition-all ${
-                          formData?.priority === priority?.value
+                        className={`p-3 border rounded-md text-center transition-all ${formData?.priority === priority?.value
                             ? `${priority?.color} border-current`
                             : 'border-border hover:border-primary/50'
-                        }`}
+                          }`}
                       >
                         <p className="text-sm font-medium">{priority?.label}</p>
                         <p className="text-xs opacity-75">{priority?.description}</p>
@@ -420,7 +439,7 @@ const IssueReportingForm = () => {
                       <h3 className="text-sm font-medium text-text-primary">Contact Information</h3>
                       <span className="text-accent">*</span>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
                         label="Full Name"
@@ -441,7 +460,7 @@ const IssueReportingForm = () => {
                         required
                       />
                     </div>
-                    
+
                     <Input
                       label="Phone Number"
                       type="tel"
@@ -468,7 +487,7 @@ const IssueReportingForm = () => {
                   >
                     {isSubmitting ? 'Submitting Report...' : 'Submit Report'}
                   </Button>
-                  
+
                   <Button
                     type="button"
                     variant="outline"
@@ -480,7 +499,7 @@ const IssueReportingForm = () => {
                   >
                     {isDraftSaving ? 'Saving...' : 'Save Draft'}
                   </Button>
-                  
+
                   <Button
                     type="button"
                     variant="ghost"

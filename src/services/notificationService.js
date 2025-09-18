@@ -99,17 +99,26 @@ class NotificationService {
     // Generate issue notification message
     generateIssueMessage(issue, type = 'created') {
         const messages = {
-            created: `🚨 *New Issue Reported*
+            created: `🎉 *Report Submitted Successfully!*
+
+Thank you for reporting this issue. Your report has been received and will be reviewed by our team.
 
 📋 *Issue:* ${issue.title}
 📍 *Location:* ${issue.address}
-🏷️ *Category:* ${issue.category?.replace('_', ' ')}
-⚡ *Priority:* ${issue.priority}
-📅 *Reported:* ${new Date(issue.created_at).toLocaleDateString('en-IN')}
+🏷️ *Category:* ${issue.category?.replace('_', ' ').toUpperCase()}
+⚡ *Priority:* ${issue.priority?.toUpperCase()}
+📅 *Submitted:* ${new Date(issue.created_at).toLocaleDateString('en-IN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })}
 
-*Issue ID:* ${issue.id.slice(0, 8)}...
+*Reference ID:* #${issue.id.slice(0, 8).toUpperCase()}
 
-We'll keep you updated on the progress!`,
+🔔 You'll receive updates on WhatsApp as we work on resolving this issue.
+
+Thank you for helping improve our community! 🏙️`,
 
             assigned: `✅ *Issue Assigned*
 
@@ -151,9 +160,9 @@ Thank you for reporting this issue!`
     async notifyUser(issue, type = 'created') {
         try {
             const userPhone = this.formatPhoneNumber(issue.reporter_phone);
-            if (!userPhone) {
-                console.log('No phone number available for user notification');
-                return { success: false, error: 'No phone number' };
+            if (!userPhone || !issue.reporter_phone) {
+                console.log('No phone number available for user notification - skipping user notification');
+                return { success: true, error: 'No phone number provided - skipped' };
             }
 
             const message = this.generateIssueMessage(issue, type);
@@ -188,9 +197,9 @@ Thank you for reporting this issue!`
     async notifyAdmin(issue, type = 'created') {
         try {
             const adminPhone = this.formatPhoneNumber(this.adminPhoneNumber);
-            if (!adminPhone) {
-                console.log('No admin phone number configured');
-                return { success: false, error: 'No admin phone number' };
+            if (!adminPhone || !this.adminPhoneNumber) {
+                console.log('No admin phone number configured - skipping admin notification');
+                return { success: true, error: 'No admin phone number configured - skipped' };
             }
 
             const adminMessage = `🔔 *Admin Alert*

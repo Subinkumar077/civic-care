@@ -12,6 +12,7 @@ const NotificationSettings = () => {
 
   const handleTestWhatsApp = async () => {
     if (!testPhone.trim()) {
+      npm
       alert('Please enter a phone number in the input field above');
       return;
     }
@@ -188,8 +189,8 @@ Time: ${new Date().toLocaleString('en-IN')}`;
         {/* Test Results */}
         {testResults && (
           <div className={`p-4 rounded-lg border ${testResults.success
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-red-50 border-red-200 text-red-800'
             }`}>
             <div className="flex items-center space-x-2">
               <Icon
