@@ -66,7 +66,9 @@ const Signup = () => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
-    if (formData?.phone && !/^[\+]?[1-9][\d]{0,15}$/?.test(formData?.phone?.replace(/\s/g, ''))) {
+    if (!formData?.phone?.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^[\+]?[1-9][\d]{0,15}$/?.test(formData?.phone?.replace(/\s/g, ''))) {
       newErrors.phone = 'Please enter a valid phone number';
     }
 
@@ -307,14 +309,15 @@ const Signup = () => {
                 autoComplete="new-password"
               />
 
-              {/* Phone (Optional) */}
+              {/* Phone (Required) */}
               <Input
-                label="Phone Number (Optional)"
+                label="Phone Number"
                 type="tel"
                 placeholder="+1 (555) 123-4567"
                 value={formData?.phone}
                 onChange={(e) => handleInputChange('phone', e?.target?.value)}
                 error={errors?.phone}
+                required
                 autoComplete="tel"
                 description="We'll send SMS updates about your reports"
               />
