@@ -44,7 +44,7 @@ const Header = () => {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Icon name="Shield" size={18} color="white" />
             </div>
-            <span className="text-xl font-bold text-text-primary">Civicare</span>
+            <span className="text-xl font-bold text-text-primary">Civic Care</span>
           </Link>
 
           {/* Desktop Navigation */}
