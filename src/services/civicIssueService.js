@@ -204,7 +204,10 @@ export const civicIssueService = {
               imageCount: 0,
               updateCount: 0,
               // Transform GPS coordinates for map compatibility
-              coordinates: issue.latitude && issue.longitude ? {
+              // Check for valid numeric values (including 0)
+              coordinates: (issue.latitude !== null && issue.latitude !== undefined &&
+                           issue.longitude !== null && issue.longitude !== undefined &&
+                           !isNaN(issue.latitude) && !isNaN(issue.longitude)) ? {
                 lat: parseFloat(issue.latitude),
                 lng: parseFloat(issue.longitude)
               } : null,
@@ -270,7 +273,9 @@ export const civicIssueService = {
 
       // Transform GPS coordinates for map compatibility
       if (data) {
-        data.coordinates = data.latitude && data.longitude ? {
+        data.coordinates = (data.latitude !== null && data.latitude !== undefined &&
+                           data.longitude !== null && data.longitude !== undefined &&
+                           !isNaN(data.latitude) && !isNaN(data.longitude)) ? {
           lat: parseFloat(data.latitude),
           lng: parseFloat(data.longitude)
         } : null;

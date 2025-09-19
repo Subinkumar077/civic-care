@@ -97,23 +97,32 @@ const InteractiveIssueMap = () => {
     }
   ];
 
-  // Use real issues if available and have coordinates, otherwise use enhanced mock data
-  const issuesWithCoordinates = realIssues?.filter(issue =>
-    issue?.coordinates?.lat && issue?.coordinates?.lng
-  ) || [];
-  
-  const displayIssues = issuesWithCoordinates.length > 0 ? realIssues : enhancedMockIssues;
+  // Filter issues that have valid coordinates (not null, undefined, or NaN)
+  const issuesWithValidCoordinates = realIssues?.filter(issue => {
+    const coords = issue?.coordinates;
+    return coords &&
+           coords.lat !== null && coords.lat !== undefined && !isNaN(coords.lat) &&
+           coords.lng !== null && coords.lng !== undefined && !isNaN(coords.lng) &&
+           coords.lat >= -90 && coords.lat <= 90 &&  // Valid latitude range
+           coords.lng >= -180 && coords.lng <= 180;  // Valid longitude range
+  }) || [];
+
+  // Use real issues with valid coordinates, otherwise fall back to enhanced mock data
+  const displayIssues = issuesWithValidCoordinates.length > 0 ? issuesWithValidCoordinates : enhancedMockIssues;
   
   console.log('🗺️ Map Data Debug:', {
     realIssuesCount: realIssues?.length || 0,
-    realIssuesWithCoords: issuesWithCoordinates.length,
+    realIssuesWithValidCoords: issuesWithValidCoordinates.length,
     displayIssuesCount: displayIssues.length,
-    usingMockData: issuesWithCoordinates.length === 0,
-    sampleRealIssue: realIssues?.[0] ? {
-      id: realIssues[0].id,
-      hasCoordinates: !!(realIssues[0].coordinates?.lat && realIssues[0].coordinates?.lng),
-      coordinates: realIssues[0].coordinates
-    } : null
+    usingMockData: issuesWithValidCoordinates.length === 0,
+    sampleRealIssues: realIssues?.slice(0, 3)?.map(issue => ({
+      id: issue.id,
+      title: issue.title?.substring(0, 30) + '...',
+      hasValidCoordinates: issuesWithValidCoordinates.some(valid => valid.id === issue.id),
+      coordinates: issue.coordinates,
+      latitude: issue.latitude,
+      longitude: issue.longitude
+    })) || []
   });
 
   // Mock current user for header
