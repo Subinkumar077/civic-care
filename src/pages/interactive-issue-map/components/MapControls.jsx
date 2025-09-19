@@ -94,7 +94,7 @@ const MapControls = ({
             <Select
               options={timeRanges}
               value={selectedTimeRange}
-              onChange={onTimeRangeFilter}
+              onChange={(value) => onTimeRangeFilter(value)}
               placeholder="Select time range"
             />
           </div>

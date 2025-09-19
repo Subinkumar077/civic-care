@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Button from './Button.jsx';
 import Icon from '../AppIcon.jsx';
+import LanguageToggle from './LanguageToggle.jsx';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userProfile, signOut, loading } = useAuth();
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -25,13 +28,13 @@ const Header = () => {
   const isActive = (path) => location?.pathname === path;
   
   const navigationItems = [
-    { path: '/public-landing-page', label: 'Home', icon: 'Home' },
-    { path: '/public-reports-listing', label: 'Reports', icon: 'FileText' },
-    { path: '/interactive-issue-map', label: 'Issue Map', icon: 'Map' },
-    { path: '/issue-reporting-form', label: 'Report Issue', icon: 'Plus' },
-    { path: '/analytics-dashboard', label: 'Analytics', icon: 'BarChart3' },
-    ...(user && (userProfile?.role === 'admin' || user?.user_metadata?.role === 'admin') 
-      ? [{ path: '/admin-dashboard', label: 'Admin', icon: 'Shield' }] 
+    { path: '/public-landing-page', label: t('home'), icon: 'Home' },
+    { path: '/public-reports-listing', label: t('browseIssues'), icon: 'FileText' },
+    { path: '/interactive-issue-map', label: t('issueMap'), icon: 'Map' },
+    { path: '/issue-reporting-form', label: t('reportIssue'), icon: 'Plus' },
+    { path: '/analytics-dashboard', label: t('analytics'), icon: 'BarChart3' },
+    ...(user && (userProfile?.role === 'admin' || user?.user_metadata?.role === 'admin')
+      ? [{ path: '/admin-dashboard', label: t('admin'), icon: 'Shield' }]
       : [])
   ];
 
@@ -44,7 +47,7 @@ const Header = () => {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Icon name="Shield" size={18} color="white" />
             </div>
-            <span className="text-xl font-bold text-text-primary">Civicare</span>
+            <span className="text-xl font-bold text-text-primary">{t('civicare')}</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -64,8 +67,9 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* User Actions */}
+          {/* Language Toggle & User Actions */}
           <div className="hidden md:flex items-center space-x-3">
+            <LanguageToggle />
             {loading ? (
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
             ) : user ? (
@@ -85,7 +89,7 @@ const Header = () => {
                   iconName="LogOut"
                   iconSize={16}
                 >
-                  Sign Out
+                  {t('logout')}
                 </Button>
               </div>
             ) : (
@@ -95,13 +99,13 @@ const Header = () => {
                   size="sm"
                   onClick={() => navigate('/login')}
                 >
-                  Sign In
+                  {t('login')}
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => navigate('/signup')}
                 >
-                  Sign Up
+                  {t('signup')}
                 </Button>
               </div>
             )}
@@ -152,7 +156,7 @@ const Header = () => {
                       className="flex items-center space-x-2 w-full px-3 py-2 text-sm font-medium text-muted-foreground hover:text-text-primary"
                     >
                       <Icon name="LogOut" size={16} />
-                      <span>Sign Out</span>
+                      <span>{t('logout')}</span>
                     </button>
                   </div>
                 ) : (
@@ -165,7 +169,7 @@ const Header = () => {
                       className="flex items-center space-x-2 w-full px-3 py-2 text-sm font-medium text-muted-foreground hover:text-text-primary"
                     >
                       <Icon name="LogIn" size={16} />
-                      <span>Sign In</span>
+                      <span>{t('login')}</span>
                     </button>
                     <button
                       onClick={() => {
@@ -175,7 +179,7 @@ const Header = () => {
                       className="flex items-center space-x-2 w-full px-3 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90"
                     >
                       <Icon name="UserPlus" size={16} />
-                      <span>Sign Up</span>
+                      <span>{t('signup')}</span>
                     </button>
                   </div>
                 )}

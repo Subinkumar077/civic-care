@@ -3,7 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
-import CitizenMetricsCard from './components/CitizenMetricsCard';
+import { useTranslation } from '../../contexts/LanguageContext';
+import MetricsCard from '../admin-dashboard/components/MetricsCard';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import { civicIssueService } from '../../services/civicIssueService';
@@ -11,6 +12,7 @@ import { civicIssueService } from '../../services/civicIssueService';
 const CitizenDashboard = () => {
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState(location.pathname.includes('community') ? 'community' : 'personal');
   const [stats, setStats] = useState({
     total: 0,
@@ -23,12 +25,12 @@ const CitizenDashboard = () => {
   const tabs = [
     {
       id: 'personal',
-      label: 'My Complaints',
+      label: t('myComplaints'),
       path: '/citizen-dashboard/my-complaints'
     },
     {
       id: 'community',
-      label: 'Community Complaints',
+      label: t('communityComplaints'),
       path: '/citizen-dashboard/community'
     }
   ];
@@ -64,30 +66,30 @@ const CitizenDashboard = () => {
 
   const dashboardMetrics = [
     {
-      title: 'Total Complaints',
+      title: t('totalComplaints'),
       value: stats.total,
-      change: `+${stats.recent} this week`,
+      change: `+${stats.recent} ${t('thisWeek')}`,
       changeType: 'info',
       icon: 'FileText'
     },
     {
-      title: 'Pending Review',
+      title: t('pending'),
       value: stats.pending,
-      change: 'Awaiting response',
+      change: t('awaitingResponse'),
       changeType: 'warning',
       icon: 'Clock'
     },
     {
-      title: 'In Progress',
+      title: t('inProgress'),
       value: stats.inProgress,
-      change: 'Being addressed',
+      change: t('beingAddressed'),
       changeType: 'info',
       icon: 'Settings'
     },
     {
-      title: 'Resolved',
+      title: t('resolved'),
       value: stats.resolved,
-      change: `${stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}% resolution rate`,
+      change: `${stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}% ${t('resolutionRate')}`,
       changeType: 'positive',
       icon: 'CheckCircle'
     }
@@ -101,60 +103,112 @@ const CitizenDashboard = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-text-primary">Citizen Dashboard</h1>
+              <h1 className="text-3xl font-bold text-text-primary">{t('citizenDashboard')}</h1>
               <p className="text-muted-foreground mt-1">
-                Track and manage your complaints and stay updated with community issues
+                {t('welcomeBack')} {user?.full_name || 'Citizen'}! {t('trackIssues')}
               </p>
             </div>
             <Link
               to="/issue-reporting-form"
-              className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
-              <span className="mr-2">Report New Issue</span>
-              <span className="text-xl">+</span>
+              <Icon name="Plus" size={16} className="mr-2" />
+              <span>{t('reportIssue')}</span>
             </Link>
           </div>
         </div>
-
         {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {dashboardMetrics.map((metric, index) => (
-            <CitizenMetricsCard
+            <MetricsCard
               key={index}
               title={metric.title}
               value={metric.value}
               change={metric.change}
               changeType={metric.changeType}
               icon={metric.icon}
+              description=""
             />
           ))}
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="bg-card border border-border rounded-lg mb-6">
-          <div className="border-b border-border">
-            <nav className="flex">
-              {tabs.map(tab => (
-                <Link
-                  key={tab.id}
-                  to={tab.path}
-                  className={cn(
-                    'py-4 px-6 text-sm font-medium border-b-2 transition-colors',
-                    activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
-                  )}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  {tab.label}
-                </Link>
-              ))}
-            </nav>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            <div className="bg-card border border-border rounded-lg">
+              <div className="p-6 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-card-foreground">
+                    {activeTab === 'personal' ? t('myComplaints') : t('communityComplaints')}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Tab Navigation */}
+              <div className="bg-muted/30 border-b border-border">
+                <nav className="flex">
+                  {tabs.map(tab => (
+                    <Link
+                      key={tab.id}
+                      to={tab.path}
+                      className={cn(
+                        'relative py-3 px-6 text-sm font-medium transition-colors flex items-center space-x-2 border-b-2',
+                        activeTab === tab.id
+                          ? 'text-primary border-primary bg-background'
+                          : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/50'
+                      )}
+                      onClick={() => setActiveTab(tab.id)}
+                    >
+                      <Icon
+                        name={tab.id === 'personal' ? 'User' : 'Users'}
+                        size={16}
+                      />
+                      <span>{tab.label}</span>
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+
+              {/* Dashboard Content */}
+              <div className="p-6">
+                <Outlet />
+              </div>
+            </div>
           </div>
 
-          {/* Dashboard Content */}
-          <div className="p-6">
-            <Outlet />
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Quick Actions Card */}
+            <div className="bg-card border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-card-foreground mb-4">{t('quickActions')}</h3>
+              <div className="space-y-3">
+                <Link
+                  to="/issue-reporting-form"
+                  className="flex items-center p-3 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors group"
+                >
+                  <Icon name="Plus" size={16} className="text-primary mr-3" />
+                  <span className="text-sm font-medium text-card-foreground">{t('reportIssue')}</span>
+                </Link>
+
+                <Link
+                  to="/interactive-issue-map"
+                  className="flex items-center p-3 bg-muted hover:bg-muted/80 rounded-lg transition-colors group"
+                >
+                  <Icon name="Map" size={16} className="text-muted-foreground mr-3" />
+                  <span className="text-sm font-medium text-card-foreground">{t('issueMap')}</span>
+                </Link>
+
+                <Link
+                  to="/public-reports-listing"
+                  className="flex items-center p-3 bg-muted hover:bg-muted/80 rounded-lg transition-colors group"
+                >
+                  <Icon name="List" size={16} className="text-muted-foreground mr-3" />
+                  <span className="text-sm font-medium text-card-foreground">{t('browseIssues')}</span>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

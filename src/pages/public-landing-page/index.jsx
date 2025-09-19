@@ -1,6 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import Header from '../../components/ui/Header';
+import LanguageToggle from '../../components/ui/LanguageToggle';
 import HeroSection from './components/HeroSection';
 import RecentReportsSection from './components/RecentReportsSection';
 import StatsSection from './components/StatsSection';
@@ -24,9 +25,9 @@ const PublicLandingPage = () => {
         <meta name="twitter:title" content="Civicare - Civic Reporting Platform" />
         <meta name="twitter:description" content="Report civic issues instantly with photo evidence and GPS location. Track progress in real-time." />
       </Helmet>
-      <Header 
-        currentUser={currentUser} 
-        notificationCount={notificationCount} 
+      <Header
+        currentUser={currentUser}
+        notificationCount={notificationCount}
       />
       <main className="w-full">
         <HeroSection />
@@ -50,7 +51,7 @@ const PublicLandingPage = () => {
                 </div>
               </div>
               <p className="text-primary-foreground/80 mb-4 max-w-md">
-                Empowering citizens to report civic issues and track their resolution in real-time. 
+                Empowering citizens to report civic issues and track their resolution in real-time.
                 Building stronger communities through transparency and accountability.
               </p>
               <div className="flex space-x-4">
@@ -71,7 +72,7 @@ const PublicLandingPage = () => {
                 </a>
               </div>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2 text-sm">
@@ -81,7 +82,7 @@ const PublicLandingPage = () => {
                 <li><a href="/admin-dashboard" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">Dashboard</a></li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
@@ -92,7 +93,7 @@ const PublicLandingPage = () => {
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-primary-foreground/20 mt-8 pt-8 text-center">
             <p className="text-primary-foreground/80 text-sm">
               © {new Date()?.getFullYear()} Civicare. All rights reserved. | Made with ❤️ for Indian Citizens

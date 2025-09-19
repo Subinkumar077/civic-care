@@ -9,6 +9,7 @@ import MapControls from './components/MapControls';
 import MapSearchBar from './components/MapSearchBar';
 import MapLegend from './components/MapLegend';
 import IssueDetailsPanel from './components/IssueDetailsPanel';
+import { useCivicIssues } from '../../hooks/useCivicIssues';
 
 const InteractiveIssueMap = () => {
   const [selectedIssue, setSelectedIssue] = useState(null);
@@ -20,7 +21,100 @@ const InteractiveIssueMap = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [searchLocation, setSearchLocation] = useState(null);
   const [searchRadius, setSearchRadius] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Use real data from the hook - fetch all public issues, not user-specific
+  const { issues: realIssues, loading: isLoading } = useCivicIssues({
+    // No user filter - get all public issues
+  });
+
+  // Enhanced mock issues with coordinates for demonstration
+  const enhancedMockIssues = [
+    {
+      id: 'mock-1',
+      title: "Large pothole on Main Street causing traffic issues",
+      description: "There's a significant pothole on Main Street near the market area that's causing traffic congestion and vehicle damage.",
+      category: "roads",
+      status: "pending",
+      priority: "high",
+      coordinates: { lat: 28.6139, lng: 77.2090 },
+      address: "Main Street, Connaught Place, New Delhi, Delhi 110001",
+      created_at: "2025-01-15T10:30:00Z"
+    },
+    {
+      id: 'mock-2',
+      title: "Overflowing garbage bin in residential area",
+      description: "The community garbage bin has been overflowing for the past 3 days, creating unhygienic conditions.",
+      category: "sanitation",
+      status: "in_progress",
+      priority: "medium",
+      coordinates: { lat: 28.6200, lng: 77.2100 },
+      address: "Sector 15, Rohini, New Delhi, Delhi 110085",
+      created_at: "2025-01-14T14:20:00Z"
+    },
+    {
+      id: 'mock-3',
+      title: "Street light not working for over a week",
+      description: "The street light on Park Avenue has been non-functional for more than a week.",
+      category: "utilities",
+      status: "resolved",
+      priority: "medium",
+      coordinates: { lat: 28.6080, lng: 77.2150 },
+      address: "Park Avenue, Lajpat Nagar, New Delhi, Delhi 110024",
+      created_at: "2025-01-10T19:45:00Z"
+    },
+    {
+      id: 'mock-4',
+      title: "Broken footpath creating pedestrian hazard",
+      description: "The footpath near the bus stop has several broken tiles and uneven surfaces.",
+      category: "roads",
+      status: "pending",
+      priority: "medium",
+      coordinates: { lat: 28.6250, lng: 77.2050 },
+      address: "Civil Lines, New Delhi, Delhi 110054",
+      created_at: "2025-01-16T08:15:00Z"
+    },
+    {
+      id: 'mock-5',
+      title: "Water leakage from municipal pipeline",
+      description: "There's a continuous water leak from the main pipeline causing water wastage.",
+      category: "utilities",
+      status: "in_progress",
+      priority: "high",
+      coordinates: { lat: 28.6180, lng: 77.2200 },
+      address: "Karol Bagh, New Delhi, Delhi 110005",
+      created_at: "2025-01-15T16:30:00Z"
+    },
+    {
+      id: 'mock-6',
+      title: "Illegal dumping in park area",
+      description: "Construction waste and household garbage is being illegally dumped in the community park.",
+      category: "environment",
+      status: "pending",
+      priority: "medium",
+      coordinates: { lat: 28.6300, lng: 77.2120 },
+      address: "Model Town, New Delhi, Delhi 110009",
+      created_at: "2025-01-16T11:00:00Z"
+    }
+  ];
+
+  // Use real issues if available and have coordinates, otherwise use enhanced mock data
+  const issuesWithCoordinates = realIssues?.filter(issue =>
+    issue?.coordinates?.lat && issue?.coordinates?.lng
+  ) || [];
+  
+  const displayIssues = issuesWithCoordinates.length > 0 ? realIssues : enhancedMockIssues;
+  
+  console.log('🗺️ Map Data Debug:', {
+    realIssuesCount: realIssues?.length || 0,
+    realIssuesWithCoords: issuesWithCoordinates.length,
+    displayIssuesCount: displayIssues.length,
+    usingMockData: issuesWithCoordinates.length === 0,
+    sampleRealIssue: realIssues?.[0] ? {
+      id: realIssues[0].id,
+      hasCoordinates: !!(realIssues[0].coordinates?.lat && realIssues[0].coordinates?.lng),
+      coordinates: realIssues[0].coordinates
+    } : null
+  });
 
   // Mock current user for header
   const currentUser = {
@@ -228,7 +322,7 @@ const InteractiveIssueMap = () => {
 
   // Filter issues based on selected criteria
   useEffect(() => {
-    let filtered = [...mockIssues];
+    let filtered = [...displayIssues];
 
     // Filter by categories
     if (selectedCategories?.length > 0) {
@@ -273,11 +367,10 @@ const InteractiveIssueMap = () => {
     setFilteredIssues(filtered);
   }, [selectedCategories, selectedStatuses, selectedTimeRange, searchLocation, searchRadius]);
 
-  // Initialize with all issues
+  // Initialize with display issues (real or mock)
   useEffect(() => {
-    setFilteredIssues(mockIssues);
-    setIsLoading(false);
-  }, []);
+    setFilteredIssues(displayIssues);
+  }, [realIssues, displayIssues.length]);
 
   const handleIssueSelect = (issue) => {
     setSelectedIssue(issue);

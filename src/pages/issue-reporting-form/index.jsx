@@ -14,12 +14,14 @@ import ReportingTips from './components/ReportingTips';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCivicIssues } from '../../hooks/useCivicIssues';
 import { useToast } from '../../components/ui/Toast';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 const IssueReportingForm = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { createIssue } = useCivicIssues();
   const { showToast } = useToast();
+  const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -144,48 +146,48 @@ const IssueReportingForm = () => {
 
   // Form validation
   const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData?.category) {
-      newErrors.category = 'Please select an issue category';
-    }
-
-    if (!formData?.title?.trim()) {
-      newErrors.title = 'Issue title is required';
-    } else if (formData?.title?.trim()?.length < 10) {
-      newErrors.title = 'Title should be at least 10 characters long';
-    }
-
-    if (!formData?.description?.trim()) {
-      newErrors.description = 'Issue description is required';
-    } else if (formData?.description?.trim()?.length < 20) {
-      newErrors.description = 'Description should be at least 20 characters long';
-    }
-
-    if (!formData?.location?.address?.trim()) {
-      newErrors.location = 'Location address is required (even with GPS coordinates)';
-    }
-
-    // Only validate contact info if user is not authenticated
-    if (!isAuthenticated) {
-      if (!formData?.contactInfo?.name?.trim()) {
-        newErrors.contactName = 'Contact name is required';
+      const newErrors = {};
+  
+      if (!formData?.category) {
+        newErrors.category = t('validationCategoryRequired');
       }
-
-      if (!formData?.contactInfo?.email?.trim()) {
-        newErrors.contactEmail = 'Contact email is required';
-      } else if (!/\S+@\S+\.\S+/?.test(formData?.contactInfo?.email)) {
-        newErrors.contactEmail = 'Please enter a valid email address';
+  
+      if (!formData?.title?.trim()) {
+        newErrors.title = t('validationTitleRequired');
+      } else if (formData?.title?.trim()?.length < 10) {
+        newErrors.title = t('validationTitleMinLength');
       }
-
-      if (!formData?.contactInfo?.phone?.trim()) {
-        newErrors.contactPhone = 'Contact phone is required';
+  
+      if (!formData?.description?.trim()) {
+        newErrors.description = t('validationDescriptionRequired');
+      } else if (formData?.description?.trim()?.length < 20) {
+        newErrors.description = t('validationDescriptionMinLength');
       }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors)?.length === 0;
-  };
+  
+      if (!formData?.location?.address?.trim()) {
+        newErrors.location = t('validationLocationRequired');
+      }
+  
+      // Only validate contact info if user is not authenticated
+      if (!isAuthenticated) {
+        if (!formData?.contactInfo?.name?.trim()) {
+          newErrors.contactName = t('validationContactNameRequired');
+        }
+  
+        if (!formData?.contactInfo?.email?.trim()) {
+          newErrors.contactEmail = t('validationContactEmailRequired');
+        } else if (!/\S+@\S+\.\S+/?.test(formData?.contactInfo?.email)) {
+          newErrors.contactEmail = t('validationContactEmailInvalid');
+        }
+  
+        if (!formData?.contactInfo?.phone?.trim()) {
+          newErrors.contactPhone = t('validationContactPhoneRequired');
+        }
+      }
+  
+      setErrors(newErrors);
+      return Object.keys(newErrors)?.length === 0;
+    };
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -205,15 +207,15 @@ const IssueReportingForm = () => {
 
       if (!result.success) {
         console.error('❌ Issue submission failed:', result.error);
-        setSubmitError(result.error || 'Failed to submit report. Please try again.');
-        showToast('Failed to submit report. Please try again.', 'error');
+        setSubmitError(result.error || t('submissionFailed'));
+        showToast(t('submissionFailed'), 'error');
         return;
       }
 
       console.log('✅ Issue submitted successfully:', result.data);
       
       // Show success toast immediately
-      showToast('🎉 Report submitted successfully! You will receive WhatsApp confirmation shortly.', 'success', 5000);
+      showToast(t('reportSubmittedMessage'), 'success', 5000);
       
       // Show the success page
       setShowSuccessMessage(true);
@@ -225,8 +227,8 @@ const IssueReportingForm = () => {
 
     } catch (error) {
       console.error('💥 Submission error:', error);
-      setSubmitError('Failed to submit report. Please try again.');
-      showToast('An unexpected error occurred. Please try again.', 'error');
+      setSubmitError(t('submissionFailed'));
+      showToast(t('unexpectedError'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -244,10 +246,10 @@ const IssueReportingForm = () => {
         savedAt: new Date()?.toISOString()
       }));
 
-      alert('Draft saved successfully!');
+      alert(t('draftSaved'));
     } catch (error) {
       console.error('Draft save error:', error);
-      alert('Failed to save draft. Please try again.');
+      alert(t('draftSaveFailed'));
     } finally {
       setIsDraftSaving(false);
     }
@@ -306,24 +308,24 @@ const IssueReportingForm = () => {
           <div className="max-w-md mx-auto text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-8">
               <Icon name="CheckCircle" size={48} className="mx-auto text-green-500 mb-4" />
-              <h2 className="text-xl font-bold text-green-700 mb-2">🎉 Report Submitted Successfully!</h2>
+              <h2 className="text-xl font-bold text-green-700 mb-2">{t('reportSubmittedSuccessfully')}</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Your issue has been submitted and is being reviewed. You'll receive WhatsApp and SMS updates about the progress.
+                {t('reportSubmittedMessage')}
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div className="flex items-center space-x-2">
                   <Icon name="MessageCircle" size={16} className="text-blue-500" />
                   <p className="text-xs text-blue-700 font-medium">
-                    WhatsApp confirmation sent to your registered number
+                    {t('whatsappConfirmation')}
                   </p>
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="text-xs text-gray-500">
-                  Report ID: <span className="font-mono font-medium">RPT-{Date.now()}</span>
+                  {t('reportIdLabel')} <span className="font-mono font-medium">RPT-{Date.now()}</span>
                 </p>
                 <p className="text-xs text-gray-500">
-                  Redirecting to reports list...
+                  {t('redirectingToReports')}
                 </p>
               </div>
             </div>
@@ -350,9 +352,9 @@ const IssueReportingForm = () => {
                     <Icon name="Plus" size={20} color="white" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-text-primary">Report an Issue</h1>
+                    <h1 className="text-2xl font-bold text-text-primary">{t('reportAnIssue')}</h1>
                     <p className="text-sm text-muted-foreground">
-                      Help improve your community by reporting civic issues
+                      {t('reportAnIssueSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -368,9 +370,9 @@ const IssueReportingForm = () => {
                         <Icon name="Crosshair" size={20} className="text-blue-500 mt-0.5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-medium text-blue-800">📍 Capturing Your Location</h3>
+                        <h3 className="text-sm font-medium text-blue-800">{t('capturingYourLocation')}</h3>
                         <p className="text-sm text-blue-700 mt-1">
-                          We're automatically detecting your current location to make reporting easier. This helps authorities respond faster to your issue.
+                          {t('detectingCurrentLocation')}
                         </p>
                       </div>
                     </div>
@@ -383,9 +385,9 @@ const IssueReportingForm = () => {
                     <div className="flex items-start space-x-3">
                       <Icon name="CheckCircle" size={20} className="text-green-500 mt-0.5" />
                       <div>
-                        <h3 className="text-sm font-medium text-green-800">✅ GPS Coordinates Captured</h3>
+                        <h3 className="text-sm font-medium text-green-800">{t('gpsCoordinatesCaptured')}</h3>
                         <p className="text-sm text-green-700 mt-1">
-                          Your current location coordinates have been automatically detected. Please enter the detailed address in the location section below.
+                          {t('locationDetectedMessage')}
                         </p>
                       </div>
                     </div>
@@ -398,15 +400,15 @@ const IssueReportingForm = () => {
                     <div className="flex items-start space-x-3">
                       <Icon name="Info" size={20} className="text-blue-500 mt-0.5" />
                       <div>
-                        <h3 className="text-sm font-medium text-blue-800">Anonymous Reporting</h3>
+                        <h3 className="text-sm font-medium text-blue-800">{t('anonymousReporting')}</h3>
                         <p className="text-sm text-blue-700 mt-1">
-                          You're reporting anonymously. Consider <button
+                          {t('anonymousReportingMessage')} <button
                             type="button"
                             onClick={() => navigate('/login')}
                             className="underline hover:no-underline font-medium"
                           >
-                            signing in
-                          </button> to track your report status and receive updates.
+                            {t('signingIn')}
+                          </button>.
                         </p>
                       </div>
                     </div>
@@ -419,7 +421,7 @@ const IssueReportingForm = () => {
                     <div className="flex items-start space-x-3">
                       <Icon name="AlertCircle" size={20} className="text-red-500 mt-0.5" />
                       <div>
-                        <h3 className="text-sm font-medium text-red-800">Submission Error</h3>
+                        <h3 className="text-sm font-medium text-red-800">{t('submissionError')}</h3>
                         <p className="text-sm text-red-700 mt-1">{submitError}</p>
                       </div>
                     </div>
@@ -437,17 +439,17 @@ const IssueReportingForm = () => {
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <Icon name="FileText" size={18} className="text-primary" />
-                    <h3 className="text-sm font-medium text-text-primary">Issue Title</h3>
+                    <h3 className="text-sm font-medium text-text-primary">{t('issueTitle')}</h3>
                     <span className="text-accent">*</span>
                   </div>
                   <Input
                     type="text"
-                    placeholder="Brief, descriptive title for the issue"
+                    placeholder={t('issueTitlePlaceholder')}
                     value={formData?.title}
                     onChange={(e) => handleInputChange('title', e?.target?.value)}
                     error={errors?.title}
                     required
-                    description="Provide a clear, concise title that summarizes the issue"
+                    description={t('issueTitleDescription')}
                   />
                 </div>
 
@@ -455,13 +457,13 @@ const IssueReportingForm = () => {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Icon name="AlignLeft" size={18} className="text-primary" />
-                    <h3 className="text-sm font-medium text-text-primary">Issue Description</h3>
+                    <h3 className="text-sm font-medium text-text-primary">{t('issueDescription')}</h3>
                     <span className="text-accent">*</span>
                   </div>
-
+  
                   <div className="space-y-3">
                     <textarea
-                      placeholder="Provide detailed description of the issue, including when it started, how it affects you, and any other relevant information..."
+                      placeholder={t('issueDescriptionPlaceholder')}
                       value={formData?.description}
                       onChange={(e) => handleInputChange('description', e?.target?.value)}
                       rows={6}
@@ -471,7 +473,7 @@ const IssueReportingForm = () => {
                     {errors?.description && (
                       <p className="text-sm text-destructive">{errors?.description}</p>
                     )}
-
+  
                     {/* Voice Input */}
                     <VoiceInput
                       onTranscript={handleVoiceTranscript}
@@ -498,13 +500,13 @@ const IssueReportingForm = () => {
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <Icon name="AlertTriangle" size={18} className="text-primary" />
-                    <h3 className="text-sm font-medium text-text-primary">Priority Level</h3>
+                    <h3 className="text-sm font-medium text-text-primary">{t('priorityLevel')}</h3>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { value: 'low', label: 'Low', color: 'bg-gray-100 text-gray-700', description: 'Non-urgent issue' },
-                      { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-700 border-yellow-200', description: 'Moderate concern' },
-                      { value: 'high', label: 'High', color: 'bg-red-100 text-red-700 border-red-200', description: 'Urgent attention needed' }
+                      { value: 'low', label: t('lowPriority'), color: 'bg-gray-100 text-gray-700', description: t('lowPriorityDesc') },
+                      { value: 'medium', label: t('mediumPriority'), color: 'bg-yellow-100 text-yellow-700 border-yellow-200', description: t('mediumPriorityDesc') },
+                      { value: 'high', label: t('highPriority'), color: 'bg-red-100 text-red-700 border-red-200', description: t('highPriorityDesc') }
                     ]?.map((priority) => (
                       <button
                         key={priority?.value}
@@ -527,40 +529,40 @@ const IssueReportingForm = () => {
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2">
                       <Icon name="User" size={18} className="text-primary" />
-                      <h3 className="text-sm font-medium text-text-primary">Contact Information</h3>
+                      <h3 className="text-sm font-medium text-text-primary">{t('contactInformation')}</h3>
                       <span className="text-accent">*</span>
                     </div>
-
+  
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
-                        label="Full Name"
+                        label={t('fullName')}
                         type="text"
-                        placeholder="Your full name"
+                        placeholder={t('fullNamePlaceholder')}
                         value={formData?.contactInfo?.name}
                         onChange={(e) => handleContactInfoChange('name', e?.target?.value)}
                         error={errors?.contactName}
                         required
                       />
                       <Input
-                        label="Email Address"
+                        label={t('emailAddress')}
                         type="email"
-                        placeholder="your.email@example.com"
+                        placeholder={t('emailPlaceholder')}
                         value={formData?.contactInfo?.email}
                         onChange={(e) => handleContactInfoChange('email', e?.target?.value)}
                         error={errors?.contactEmail}
                         required
                       />
                     </div>
-
+  
                     <Input
-                      label="Phone Number"
+                      label={t('phoneNumber')}
                       type="tel"
-                      placeholder="+1 (555) 123-4567"
+                      placeholder={t('phonePlaceholder')}
                       value={formData?.contactInfo?.phone}
                       onChange={(e) => handleContactInfoChange('phone', e?.target?.value)}
                       error={errors?.contactPhone}
                       required
-                      description="We'll send SMS updates about your report status"
+                      description={t('smsUpdates')}
                     />
                   </div>
                 )}
@@ -576,9 +578,9 @@ const IssueReportingForm = () => {
                     iconSize={16}
                     className="flex-1 sm:flex-none"
                   >
-                    {isSubmitting ? 'Submitting Report...' : 'Submit Report'}
+                    {isSubmitting ? t('submittingReport') : t('submitReport')}
                   </Button>
-
+  
                   <Button
                     type="button"
                     variant="outline"
@@ -588,9 +590,9 @@ const IssueReportingForm = () => {
                     iconPosition="left"
                     iconSize={16}
                   >
-                    {isDraftSaving ? 'Saving...' : 'Save Draft'}
+                    {isDraftSaving ? t('savingDraft') : t('saveDraft')}
                   </Button>
-
+  
                   <Button
                     type="button"
                     variant="ghost"
@@ -599,7 +601,7 @@ const IssueReportingForm = () => {
                     iconPosition="left"
                     iconSize={16}
                   >
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </form>

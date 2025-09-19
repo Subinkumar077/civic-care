@@ -6,10 +6,12 @@ import SearchBar from '../../../components/ui/SearchBar';
 import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
 import Icon from '../../../components/AppIcon';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 const MyComplaints = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,191 +69,258 @@ const MyComplaints = () => {
     });
   };
 
-  const filteredComplaints = complaints.filter(complaint => {
-    const matchesSearch = complaint.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         complaint.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || complaint.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredComplaints = React.useMemo(() => {
+    return complaints.filter(complaint => {
+      const matchesSearch = searchTerm === '' ||
+        (complaint.title && complaint.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (complaint.description && complaint.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (complaint.address && complaint.address.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesStatus = statusFilter === 'all' || complaint.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [complaints, searchTerm, statusFilter]);
 
-  const sortedComplaints = [...filteredComplaints]?.sort((a, b) => {
-    if (sortConfig?.direction === 'asc') {
-      return a?.[sortConfig?.key] > b?.[sortConfig?.key] ? 1 : -1;
-    }
-    return a?.[sortConfig?.key] < b?.[sortConfig?.key] ? 1 : -1;
-  });
+  const statusOrder = {
+    'submitted': 1,
+    'in_review': 2,
+    'assigned': 3,
+    'in_progress': 4,
+    'resolved': 5,
+    'closed': 6,
+    'rejected': 7
+  };
+
+  const sortedComplaints = React.useMemo(() => {
+    return [...filteredComplaints].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Handle date sorting
+      if (sortConfig.key === 'created_at') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      }
+
+      // Handle status sorting
+      if (sortConfig.key === 'status') {
+        aValue = statusOrder[aValue] || 0;
+        bValue = statusOrder[bValue] || 0;
+      }
+
+      if (sortConfig.direction === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      }
+      return aValue < bValue ? 1 : -1;
+    });
+  }, [filteredComplaints, sortConfig]);
 
   const statusOptions = [
-    { value: 'all', label: 'All Status' },
-    { value: 'submitted', label: 'Submitted' },
-    { value: 'in_review', label: 'In Review' },
-    { value: 'assigned', label: 'Assigned' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'closed', label: 'Closed' },
-    { value: 'rejected', label: 'Rejected' }
+    { value: 'all', label: t('allStatus') },
+    { value: 'submitted', label: t('submitted') },
+    { value: 'in_review', label: t('inReview') },
+    { value: 'assigned', label: t('assigned') },
+    { value: 'in_progress', label: t('inProgress') },
+    { value: 'resolved', label: t('resolved') },
+    { value: 'closed', label: t('closed') },
+    { value: 'rejected', label: t('rejected') }
   ];
 
   if (loading) {
     return (
-      <div className="p-8 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Loading complaints...</p>
+      <div className="p-12 text-center">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+          <div className="absolute inset-0 rounded-full bg-blue-100 opacity-20 animate-pulse"></div>
+        </div>
+        <p className="text-gray-600 font-medium">{t('loadingComplaints')}</p>
+        <p className="text-gray-400 text-sm mt-1">Please wait while we fetch your data</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">My Complaints</h2>
-          <Button
-            onClick={() => navigate('/issue-reporting-form')}
-            iconName="Plus"
-            iconPosition="left"
-            iconSize={14}
-          >
-            Report New Issue
-          </Button>
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-card-foreground">{t('myComplaints')}</h2>
+          <p className="text-muted-foreground text-sm">{t('trackSubmittedIssues')}</p>
         </div>
+      </div>
 
-        <div className="flex gap-4">
+      {/* Filters Section */}
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
+            <label className="block text-sm font-medium text-card-foreground mb-2">{t('searchComplaints')}</label>
             <SearchBar
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search your complaints..."
+              placeholder={t('searchByTitleDescLocation')}
+              className="w-full"
             />
           </div>
-          <div className="w-48">
+          <div className="w-full md:w-64">
+            <label className="block text-sm font-medium text-card-foreground mb-2">{t('filterByStatus')}</label>
             <Select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(value) => setStatusFilter(value)}
               options={statusOptions}
+              className="w-full"
             />
           </div>
         </div>
       </div>
 
+      {/* Results Section */}
       {sortedComplaints.length === 0 ? (
-        <div className="p-8 text-center">
-          <Icon name="Search" size={48} className="mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-heading font-semibold text-lg text-card-foreground mb-2">
-            No Complaints Found
-          </h3>
-          <p className="text-muted-foreground mb-6">
-            You haven't submitted any complaints yet. Click the button above to report a new issue.
-          </p>
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="bg-muted rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+              <Icon name="Search" size={48} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold text-card-foreground mb-3">
+              {t('noComplaintsFound')}
+            </h3>
+            <p className="text-muted-foreground mb-8 leading-relaxed">
+              {searchTerm || statusFilter !== 'all'
+                ? t('noComplaintsMessageFiltered')
+                : t('noComplaintsMessageEmpty')
+              }
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="text-left p-4 font-medium text-muted-foreground">
-                  <button
-                    onClick={() => handleSort('id')}
-                    className="flex items-center space-x-1 hover:text-foreground transition-smooth"
-                  >
-                    <span>Issue ID</span>
-                    <Icon name={getSortIcon('id')} size={14} />
-                  </button>
-                </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">
-                  <button
-                    onClick={() => handleSort('title')}
-                    className="flex items-center space-x-1 hover:text-foreground transition-smooth"
-                  >
-                    <span>Title & Location</span>
-                    <Icon name={getSortIcon('title')} size={14} />
-                  </button>
-                </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">
-                  <button
-                    onClick={() => handleSort('category')}
-                    className="flex items-center space-x-1 hover:text-foreground transition-smooth"
-                  >
-                    <span>Category</span>
-                    <Icon name={getSortIcon('category')} size={14} />
-                  </button>
-                </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">
-                  <button
-                    onClick={() => handleSort('status')}
-                    className="flex items-center space-x-1 hover:text-foreground transition-smooth"
-                  >
-                    <span>Status</span>
-                    <Icon name={getSortIcon('status')} size={14} />
-                  </button>
-                </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">
-                  <button
-                    onClick={() => handleSort('created_at')}
-                    className="flex items-center space-x-1 hover:text-foreground transition-smooth"
-                  >
-                    <span>Submitted</span>
-                    <Icon name={getSortIcon('created_at')} size={14} />
-                  </button>
-                </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sortedComplaints?.map((complaint) => (
-                <tr key={complaint.id} className="hover:bg-muted/30 transition-smooth">
-                  <td className="p-4">
-                    <span className="font-mono text-sm text-primary">
-                      #{complaint.id?.slice(0, 8)}...
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="space-y-1">
-                      <p className="font-medium text-card-foreground line-clamp-1">{complaint.title}</p>
-                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                        <Icon name="MapPin" size={12} />
-                        <span className="line-clamp-1">{complaint.address}</span>
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="text-left p-4 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => handleSort('id')}
+                      className="flex items-center space-x-2 hover:text-primary transition-colors group"
+                    >
+                      <span>{t('issueId')}</span>
+                      <Icon name={getSortIcon('id')} size={16} className="group-hover:text-primary" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => handleSort('title')}
+                      className="flex items-center space-x-2 hover:text-primary transition-colors group"
+                    >
+                      <span>{t('titleAndLocation')}</span>
+                      <Icon name={getSortIcon('title')} size={16} className="group-hover:text-primary" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => handleSort('category')}
+                      className="flex items-center space-x-2 hover:text-primary transition-colors group"
+                    >
+                      <span>{t('category')}</span>
+                      <Icon name={getSortIcon('category')} size={16} className="group-hover:text-primary" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => handleSort('status')}
+                      className="flex items-center space-x-2 hover:text-primary transition-colors group"
+                    >
+                      <span>{t('status')}</span>
+                      <Icon name={getSortIcon('status')} size={16} className="group-hover:text-primary" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => handleSort('created_at')}
+                      className="flex items-center space-x-2 hover:text-primary transition-colors group"
+                    >
+                      <span>{t('submitted')}</span>
+                      <Icon name={getSortIcon('created_at')} size={16} className="group-hover:text-primary" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">{t('actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {sortedComplaints?.map((complaint, index) => (
+                  <tr key={complaint.id} className="hover:bg-muted/50 transition-colors group">
+                    <td className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <span className="font-mono text-sm text-primary font-medium">
+                          #{complaint.id?.slice(0, 8)}...
+                        </span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary/10 text-secondary capitalize">
-                      {complaint.category?.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(complaint.status)}`}>
-                      {complaint.status?.replace('_', ' ')?.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-sm text-muted-foreground">{formatDate(complaint.created_at)}</span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center space-x-1">
+                    </td>
+                    <td className="p-4">
+                      <div className="space-y-2">
+                        <p className="font-medium text-card-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                          {complaint.title}
+                        </p>
+                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                          <Icon name="MapPin" size={14} className="text-muted-foreground" />
+                          <span className="line-clamp-1">{complaint.address}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary capitalize">
+                        {complaint.category?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(complaint.status)}`}>
+                        {complaint.status?.replace('_', ' ')?.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Icon name="Calendar" size={14} className="text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground font-medium">{formatDate(complaint.created_at)}</span>
+                      </div>
+                    </td>
+                    <td className="p-4">
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => navigate(`/issue/${complaint.id}`)}
-                        className="h-8 w-8"
+                        className="text-primary hover:text-primary hover:bg-primary/10"
                         title="View Details"
                       >
-                        <Icon name="Eye" size={14} />
+                        <Icon name="Eye" size={16} className="mr-2" />
+                        {t('view')}
                       </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer */}
+          <div className="bg-muted/30 px-6 py-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <Icon name="Info" size={16} className="text-muted-foreground" />
+                <span>{t('showingXOfYComplaints').replace('{countShown}', sortedComplaints?.length).replace('{total}', complaints?.length)}</span>
+              </div>
+              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-success rounded-full"></div>
+                  <span>{t('resolved')}: {complaints.filter(c => c.status === 'resolved').length}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-warning rounded-full"></div>
+                  <span>{t('pending')}: {complaints.filter(c => c.status === 'submitted' || c.status === 'in_review').length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="p-4 border-t border-border bg-muted/50">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Showing {sortedComplaints?.length} of {complaints?.length} complaints</span>
-        </div>
-      </div>
     </div>
   );
 };

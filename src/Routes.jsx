@@ -15,17 +15,21 @@ import Signup from '@/pages/Signup';
 import CitizenDashboard from '@/pages/citizen-dashboard';
 import MyComplaints from '@/pages/citizen-dashboard/components/MyComplaints';
 import CommunityComplaints from '@/pages/citizen-dashboard/components/CommunityComplaints';
+import StudentDashboard from '@/pages/student-dashboard';
+import CitizenDashboardNew from '@/pages/student-dashboard';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ToastProvider } from '@/components/ui/Toast';
 
 const Routes = () => {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <AuthProvider>
-          <ToastProvider>
-            <ScrollToTop />
-            <RouterRoutes>
+        <LanguageProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <ScrollToTop />
+              <RouterRoutes>
             {/* Public Routes */}
             <Route path="/" element={<PublicLandingPage />} />
             <Route path="/public-landing-page" element={<PublicLandingPage />} />
@@ -40,12 +44,9 @@ const Routes = () => {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/analytics-dashboard" element={<AnalyticsDashboard />} />
             
-            {/* Citizen Dashboard Routes */}
-            <Route path="/citizen-dashboard" element={<CitizenDashboard />}>
-              <Route path="my-complaints" element={<MyComplaints />} />
-              <Route path="community" element={<CommunityComplaints />} />
-              <Route index element={<MyComplaints />} />
-            </Route>
+            {/* Citizen Dashboard Route */}
+            <Route path="/citizen-dashboard" element={<CitizenDashboardNew />} />
+
 
             {/* Authentication Routes */}
             <Route path="/login" element={<Login />} />
@@ -53,11 +54,12 @@ const Routes = () => {
             
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />
-          </RouterRoutes>
+            </RouterRoutes>
           </ToastProvider>
         </AuthProvider>
-      </ErrorBoundary>
-    </BrowserRouter>
+      </LanguageProvider>
+    </ErrorBoundary>
+  </BrowserRouter>
   );
 };
 
