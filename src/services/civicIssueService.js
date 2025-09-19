@@ -167,6 +167,8 @@ export const civicIssueService = {
   // Get a single issue by ID
   async getIssueById(id) {
     try {
+      console.log('🔍 Fetching issue by ID:', id);
+      
       const { data, error } = await supabase?.from('civic_issues')?.select(`
           *,
           departments(name, description, contact_email, contact_phone),
@@ -177,21 +179,52 @@ export const civicIssueService = {
         `)?.eq('id', id)?.single();
 
       if (error) {
+        console.error('❌ Error fetching issue:', error);
+        
+        // Handle specific error cases
+        if (error.code === 'PGRST116' || error.message.includes('No rows found')) {
+          console.log('💡 Issue not found - likely deleted');
+          return { data: null, error: 'Issue not found. It may have been deleted or does not exist.' };
+        }
+        
         throw error;
       }
 
-      // Process image URLs
+      if (!data) {
+        console.log('❌ No data returned for issue:', id);
+        return { data: null, error: 'Issue not found. It may have been deleted or does not exist.' };
+      }
+
+      console.log('✅ Issue found:', data.title);
+
+      // Process image URLs safely
       if (data?.issue_images) {
-        data.issue_images = data.issue_images.map(image => ({
-          ...image,
-          image_url: image.image_url || getImageUrl(image.image_path)
-        }));
+        data.issue_images = data.issue_images.map(image => {
+          try {
+            return {
+              ...image,
+              image_url: image.image_url || getImageUrl(image.image_path)
+            };
+          } catch (imageError) {
+            console.warn('⚠️ Error processing image URL:', imageError);
+            return {
+              ...image,
+              image_url: null // Fallback for broken images
+            };
+          }
+        });
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error fetching issue:', error);
-      return { data: null, error: error?.message };
+      console.error('💥 Error fetching issue:', error);
+      
+      // Provide user-friendly error messages
+      if (error.message.includes('Failed to fetch')) {
+        return { data: null, error: 'Network error. Please check your connection and try again.' };
+      }
+      
+      return { data: null, error: error?.message || 'Failed to load issue details.' };
     }
   },
 

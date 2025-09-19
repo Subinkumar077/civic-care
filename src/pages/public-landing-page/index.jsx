@@ -1,6 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import Header from '../../components/ui/Header';
+import Chatbot from '../../components/ui/Chatbot';
 import HeroSection from './components/HeroSection';
 import RecentReportsSection from './components/RecentReportsSection';
 import StatsSection from './components/StatsSection';
@@ -34,6 +35,9 @@ const PublicLandingPage = () => {
         <StatsSection />
         <TrustSignalsSection />
       </main>
+      
+      {/* Chatbot Support */}
+      <Chatbot />
       <footer className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
