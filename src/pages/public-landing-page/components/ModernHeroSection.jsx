@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import Button from '../../../components/ui/Button';
 import Icon from '../../../components/AppIcon';
 
 const ModernHeroSection = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -66,7 +68,7 @@ const ModernHeroSection = () => {
           }`}>
             <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 mb-8 shadow-lg">
               <Icon name="Shield" size={16} className="text-green-500" />
-              <span className="text-sm font-medium text-slate-700">Trusted by 50,000+ Citizens</span>
+              <span className="text-sm font-medium text-slate-700">{t('hero.trustBadge')}</span>
             </div>
           </div>
 
@@ -75,9 +77,9 @@ const ModernHeroSection = () => {
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
           }`}>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-800 mb-6 leading-tight">
-              Your Voice for a{' '}
+              {t('hero.headline')}{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-red-600">
-                Better Community
+                {t('hero.headlineAccent')}
               </span>
             </h1>
           </div>
@@ -87,8 +89,7 @@ const ModernHeroSection = () => {
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
           }`}>
             <p className="text-xl md:text-2xl text-slate-600 mb-8 leading-relaxed max-w-3xl mx-auto">
-              Report civic issues instantly with photo evidence and GPS tracking. 
-              Track progress in real-time to help build safer neighborhoods.
+              {t('hero.subheadline')}
             </p>
           </div>
 
@@ -102,7 +103,7 @@ const ModernHeroSection = () => {
                 className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
               >
                 <Icon name="Plus" size={20} />
-                <span>Report an Issue</span>
+                <span>{t('hero.reportIssue')}</span>
               </Button>
               
               <Button
@@ -111,7 +112,7 @@ const ModernHeroSection = () => {
                 className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
               >
                 <Icon name="Search" size={20} />
-                <span>Browse Issues</span>
+                <span>{t('hero.browseIssues')}</span>
               </Button>
             </div>
           </div>
@@ -123,19 +124,19 @@ const ModernHeroSection = () => {
             <div className="flex flex-wrap justify-center items-center gap-8 text-slate-500 text-sm">
               <div className="flex items-center space-x-2">
                 <Icon name="Shield" size={16} className="text-green-500" />
-                <span>Secure & Encrypted</span>
+                <span>{t('hero.secureEncrypted')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Icon name="Clock" size={16} className="text-blue-500" />
-                <span>Real-time Updates</span>
+                <span>{t('hero.realTimeUpdates')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Icon name="Users" size={16} className="text-purple-500" />
-                <span>Community Driven</span>
+                <span>{t('hero.communityDriven')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Icon name="Award" size={16} className="text-yellow-500" />
-                <span>Government Certified</span>
+                <span>{t('hero.governmentCertified')}</span>
               </div>
             </div>
           </div>

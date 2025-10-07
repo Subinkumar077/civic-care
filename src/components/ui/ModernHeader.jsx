@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import Button from './Button';
 import Icon from '../AppIcon';
+import LanguageSelector from './LanguageSelector';
 
 const ModernHeader = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, userProfile, signOut } = useAuth();
+  const { t } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -24,12 +27,12 @@ const ModernHeader = () => {
   const isActive = (path) => location?.pathname === path;
 
   const navigationLinks = [
-    { path: '/public-landing-page', label: 'Home', icon: 'Home' },
-    { path: '/public-reports-listing', label: 'Reports', icon: 'FileText' },
-    { path: '/how-it-works', label: 'How It Works', icon: 'HelpCircle' },
-    { path: '/impact', label: 'Impact', icon: 'TrendingUp' },
-    { path: '/analytics-dashboard', label: 'Analytics', icon: 'BarChart3' },
-    { path: '/support', label: 'Support', icon: 'MessageCircle' }
+    { path: '/public-landing-page', label: t('nav.home'), icon: 'Home' },
+    { path: '/public-reports-listing', label: t('nav.reports'), icon: 'FileText' },
+    { path: '/how-it-works', label: t('nav.howItWorks'), icon: 'HelpCircle' },
+    { path: '/impact', label: t('nav.impact'), icon: 'TrendingUp' },
+    { path: '/analytics-dashboard', label: t('nav.analytics'), icon: 'BarChart3' },
+    { path: '/support', label: t('nav.support'), icon: 'MessageCircle' }
   ];
 
   const handleSignOut = async () => {
@@ -66,7 +69,7 @@ const ModernHeader = () => {
               <p className={`text-xs transition-colors duration-200 ${
                 isScrolled ? 'text-slate-500' : 'text-slate-600'
               }`}>
-                Community First
+                {t('nav.communityFirst')}
               </p>
             </div>
           </Link>
@@ -91,6 +94,8 @@ const ModernHeader = () => {
 
           {/* Auth Buttons */}
           <div className="hidden lg:flex items-center space-x-3">
+            {/* Language Selector */}
+            <LanguageSelector />
             {user ? (
               <div className="flex items-center space-x-3">
                 {/* User Menu */}
@@ -100,7 +105,7 @@ const ModernHeader = () => {
                   </div>
                   <div className="text-sm">
                     <p className="font-medium text-slate-800">{userProfile?.full_name || user.email?.split('@')[0]}</p>
-                    <p className="text-slate-500 text-xs">Welcome back!</p>
+                    <p className="text-slate-500 text-xs">{t('nav.welcomeBack')}</p>
                   </div>
                 </div>
 
@@ -109,7 +114,7 @@ const ModernHeader = () => {
                   onClick={() => navigate(userProfile?.role === 'admin' ? '/admin-dashboard' : '/public-reports-listing')}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
                 >
-                  Dashboard
+                  {t('nav.dashboard')}
                 </Button>
 
                 {/* Sign Out */}
@@ -118,7 +123,7 @@ const ModernHeader = () => {
                   variant="outline"
                   className="border-slate-300 text-slate-700 hover:border-red-300 hover:text-red-600 px-4 py-2 rounded-xl font-medium transition-all duration-200 hover:scale-105"
                 >
-                  Sign Out
+                  {t('nav.signOut')}
                 </Button>
               </div>
             ) : (
@@ -128,13 +133,13 @@ const ModernHeader = () => {
                   variant="outline"
                   className="border-slate-300 text-slate-700 hover:border-blue-300 hover:text-blue-600 px-6 py-2 rounded-xl font-medium transition-all duration-200 hover:scale-105"
                 >
-                  Sign In
+                  {t('nav.signIn')}
                 </Button>
                 <Button
                   onClick={() => navigate('/signup')}
                   className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-medium transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
                 >
-                  Sign Up
+                  {t('nav.signUp')}
                 </Button>
               </div>
             )}
@@ -172,6 +177,11 @@ const ModernHeader = () => {
                 </Link>
               ))}
 
+              {/* Language Selector */}
+              <div className="pt-4 border-t border-slate-200">
+                <LanguageSelector className="w-full" />
+              </div>
+
               {/* Auth Buttons */}
               <div className="pt-4 border-t border-slate-200 space-y-3">
                 {user ? (
@@ -182,7 +192,7 @@ const ModernHeader = () => {
                       </div>
                       <div>
                         <p className="font-medium text-slate-800">{userProfile?.full_name || user.email?.split('@')[0]}</p>
-                        <p className="text-slate-500 text-sm">Welcome back!</p>
+                        <p className="text-slate-500 text-sm">{t('nav.welcomeBack')}</p>
                       </div>
                     </div>
                     <Button
@@ -192,7 +202,7 @@ const ModernHeader = () => {
                       }}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium"
                     >
-                      Dashboard
+                      {t('nav.dashboard')}
                     </Button>
                     <Button
                       onClick={() => {
@@ -202,7 +212,7 @@ const ModernHeader = () => {
                       variant="outline"
                       className="w-full border-slate-300 text-slate-700 hover:border-red-300 hover:text-red-600 py-3 rounded-xl font-medium"
                     >
-                      Sign Out
+                      {t('nav.signOut')}
                     </Button>
                   </>
                 ) : (
@@ -215,7 +225,7 @@ const ModernHeader = () => {
                       variant="outline"
                       className="w-full border-slate-300 text-slate-700 hover:border-blue-300 hover:text-blue-600 py-3 rounded-xl font-medium"
                     >
-                      Sign In
+                      {t('nav.signIn')}
                     </Button>
                     <Button
                       onClick={() => {
@@ -224,7 +234,7 @@ const ModernHeader = () => {
                       }}
                       className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-medium"
                     >
-                      Sign Up
+                      {t('nav.signUp')}
                     </Button>
                   </>
                 )}

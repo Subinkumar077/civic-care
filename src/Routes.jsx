@@ -13,14 +13,16 @@ import IssueDetail from './pages/IssueDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { ToastProvider } from './components/ui/Toast';
 
 const Routes = () => {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <AuthProvider>
-          <ToastProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <ToastProvider>
             <ScrollToTop />
             <RouterRoutes>
             {/* Public Routes */}
@@ -44,8 +46,9 @@ const Routes = () => {
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />
           </RouterRoutes>
-          </ToastProvider>
-        </AuthProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </ErrorBoundary>
     </BrowserRouter>
   );

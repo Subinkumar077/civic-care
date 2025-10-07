@@ -23,15 +23,15 @@ const Header = () => {
   const showDemoCredentials = location?.pathname === '/login' || location?.pathname === '/signup';
 
   const isActive = (path) => location?.pathname === path;
-  
+
   const navigationItems = [
     { path: '/public-landing-page', label: 'Home', icon: 'Home' },
     { path: '/public-reports-listing', label: 'Reports', icon: 'FileText' },
     { path: '/interactive-issue-map', label: 'Issue Map', icon: 'Map' },
     { path: '/issue-reporting-form', label: 'Report Issue', icon: 'Plus' },
     { path: '/analytics-dashboard', label: 'Analytics', icon: 'BarChart3' },
-    ...(user && (userProfile?.role === 'admin' || user?.user_metadata?.role === 'admin') 
-      ? [{ path: '/admin-dashboard', label: 'Admin', icon: 'Shield' }] 
+    ...(user && (userProfile?.role === 'admin' || user?.user_metadata?.role === 'admin')
+      ? [{ path: '/admin-dashboard', label: 'Admin', icon: 'Shield' }]
       : [])
   ];
 
@@ -53,10 +53,9 @@ const Header = () => {
               <Link
                 key={item?.path}
                 to={item?.path}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive(item?.path)
-                    ? 'bg-primary/10 text-primary' :'text-muted-foreground hover:text-text-primary'
-                }`}
+                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item?.path)
+                  ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-text-primary'
+                  }`}
               >
                 <Icon name={item?.icon} size={16} />
                 <span>{item?.label}</span>
@@ -125,16 +124,15 @@ const Header = () => {
                   key={item?.path}
                   to={item?.path}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive(item?.path)
-                      ? 'bg-primary/10 text-primary' :'text-muted-foreground hover:text-text-primary'
-                  }`}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item?.path)
+                    ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-text-primary'
+                    }`}
                 >
                   <Icon name={item?.icon} size={16} />
                   <span>{item?.label}</span>
                 </Link>
               ))}
-              
+
               {/* Mobile User Actions */}
               <div className="border-t border-border pt-4 mt-4">
                 {user ? (
