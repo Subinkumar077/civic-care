@@ -12,7 +12,6 @@ A modern React-based project utilizing the latest frontend technologies and tool
 - **Data Visualization** - Integrated D3.js and Recharts for powerful data visualization
 - **Form Management** - React Hook Form for efficient form handling
 - **Animation** - Framer Motion for smooth UI animations
-- **Testing** - Jest and React Testing Library setup
 
 ## 📋 Prerequisites
 

@@ -45,11 +45,7 @@ export default {
     realTimeUpdates: {
       title: 'Real-Time Updates',
       description: 'Get instant WhatsApp notifications when your reported issues are being addressed or resolved.'
-    },
-    ctaTitle: 'Ready to Make a Difference?',
-    ctaSubtitle: 'Join thousands of citizens who are actively improving their communities through civic engagement.',
-    watchDemo: 'Watch Demo',
-    learnMore: 'Learn More'
+    }
   },
 
   // Stats Section
