@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 import Button from '../../components/ui/Button';
-import Header from '../../components/ui/Header';
+import PageLayout from '../../components/layout/PageLayout';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import MetricsCard from './components/MetricsCard';
 import ChartContainer from './components/ChartContainer';
@@ -12,9 +13,11 @@ import DepartmentPerformanceChart from './components/DepartmentPerformanceChart'
 import GeographicHeatMap from './components/GeographicHeatMap';
 import DataTable from './components/DataTable';
 import DateRangeSelector from './components/DateRangeSelector';
+import { civicIssueService } from '../../services/civicIssueService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const AnalyticsDashboard = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: '2024-08-17',
     endDate: '2024-09-17',
@@ -22,6 +25,10 @@ const AnalyticsDashboard = () => {
   });
   const [chartType, setChartType] = useState('line');
   const [refreshTimestamp, setRefreshTimestamp] = useState(new Date()?.toLocaleString());
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [recentIssues, setRecentIssues] = useState([]);
+  
+  const { animations } = useTheme();
 
   // Mock current user for header
   const currentUser = {
@@ -29,77 +36,189 @@ const AnalyticsDashboard = () => {
     email: "admin@civicare.gov.in"
   };
 
-  // Mock metrics data
-  const metricsData = [
+  // Load real analytics data
+  useEffect(() => {
+    const loadAnalyticsData = async () => {
+      setLoading(true);
+      
+      try {
+        console.log('📊 Analytics Dashboard: Loading real data from Supabase...');
+        
+        // Get real data from Supabase
+        const { data: issues, error: issuesError } = await civicIssueService.getIssues();
+        const { data: stats, error: statsError } = await civicIssueService.getIssuesStats();
+        
+        if (issuesError) {
+          console.error('📊 Error loading issues:', issuesError);
+          setAnalyticsData(null);
+          setRecentIssues([]);
+        } else if (statsError) {
+          console.error('📊 Error loading stats:', statsError);
+          setAnalyticsData(null);
+          setRecentIssues(issues?.slice(0, 10) || []);
+        } else {
+          console.log('📊 Analytics Dashboard: Loaded', issues?.length || 0, 'real issues');
+          
+          // Process real data into analytics format
+          const processedAnalytics = processRealDataToAnalytics(issues || [], stats || {});
+          setAnalyticsData(processedAnalytics);
+          setRecentIssues(issues?.slice(0, 10) || []);
+        }
+        
+        setRefreshTimestamp(new Date()?.toLocaleString());
+      } catch (error) {
+        console.error('📊 Error loading analytics data:', error);
+        setAnalyticsData(null);
+        setRecentIssues([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadAnalyticsData();
+  }, [dateRange]);
+
+  // Process real Supabase data into analytics format
+  const processRealDataToAnalytics = (issues, stats) => {
+    const totalIssues = issues.length;
+    const resolvedIssues = issues.filter(i => i.status === 'resolved').length;
+    const inProgressIssues = issues.filter(i => i.status === 'in_progress').length;
+    const resolutionRate = totalIssues > 0 ? ((resolvedIssues / totalIssues) * 100) : 0;
+    
+    // Calculate average response time for resolved issues
+    const resolvedWithDates = issues.filter(i => i.status === 'resolved' && i.resolved_at && i.created_at);
+    const avgResponseTime = resolvedWithDates.length > 0 
+      ? resolvedWithDates.reduce((sum, issue) => {
+          const created = new Date(issue.created_at);
+          const resolved = new Date(issue.resolved_at);
+          return sum + (resolved - created) / (1000 * 60 * 60 * 24); // days
+        }, 0) / resolvedWithDates.length
+      : 0;
+
+    // Process categories
+    const categoryStats = {};
+    issues.forEach(issue => {
+      categoryStats[issue.category] = (categoryStats[issue.category] || 0) + 1;
+    });
+    
+    const categories = Object.entries(categoryStats).map(([category, count]) => ({
+      name: category.charAt(0).toUpperCase() + category.slice(1),
+      value: count,
+      percentage: ((count / totalIssues) * 100).toFixed(1),
+      color: getCategoryColor(category)
+    }));
+
+    // Generate timeline data (last 30 days)
+    const timeline = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayIssues = issues.filter(issue => {
+        const issueDate = new Date(issue.created_at).toISOString().split('T')[0];
+        return issueDate === dateStr;
+      });
+      
+      timeline.push({
+        date: dateStr,
+        total: dayIssues.length,
+        resolved: dayIssues.filter(i => i.status === 'resolved').length,
+        pending: dayIssues.filter(i => ['submitted', 'in_review'].includes(i.status)).length,
+        inProgress: dayIssues.filter(i => i.status === 'in_progress').length
+      });
+    }
+
+    return {
+      overview: {
+        totalIssues,
+        resolvedIssues,
+        inProgressIssues,
+        resolutionRate: parseFloat(resolutionRate.toFixed(1)),
+        avgResponseTime: avgResponseTime.toFixed(1),
+        weeklyIssues: stats.recentCount || 0,
+        monthlyIssues: issues.filter(i => {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          return new Date(i.created_at) >= monthAgo;
+        }).length,
+        citizenSatisfaction: 4.6 // Mock satisfaction score
+      },
+      categories,
+      timeline,
+      departments: [], // Will be populated if department data is available
+      geographic: [], // Will be populated if location data is available
+      trends: {
+        issueGrowth: 12.5, // Mock growth percentage
+        resolutionImprovement: 5.2,
+        responseTimeImprovement: -1.3
+      }
+    };
+  };
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      'roads': '#ef4444',
+      'sanitation': '#f97316', 
+      'utilities': '#eab308',
+      'infrastructure': '#6366f1',
+      'safety': '#3b82f6',
+      'environment': '#22c55e',
+      'water': '#06b6d4',
+      'electricity': '#eab308',
+      'transport': '#8b5cf6'
+    };
+    return colors[category] || '#6b7280';
+  };
+
+  // Generate metrics data from real analytics
+  const metricsData = analyticsData ? [
     {
       title: "Total Issues",
-      value: "2,847",
-      change: "+12.5%",
+      value: analyticsData.overview.totalIssues.toLocaleString(),
+      change: `+${analyticsData.trends.issueGrowth}%`,
       changeType: "increase",
       icon: "AlertCircle",
       description: "vs last month"
     },
     {
       title: "Resolution Rate",
-      value: "87.3%",
-      change: "+5.2%",
+      value: `${analyticsData.overview.resolutionRate}%`,
+      change: `+${analyticsData.trends.resolutionImprovement}%`,
       changeType: "increase",
       icon: "CheckCircle",
       description: "issues resolved"
     },
     {
       title: "Avg Response Time",
-      value: "4.2 days",
-      change: "-1.3 days",
+      value: `${analyticsData.overview.avgResponseTime} days`,
+      change: `${analyticsData.trends.responseTimeImprovement} days`,
       changeType: "decrease",
       icon: "Clock",
       description: "faster than last month"
     },
     {
       title: "Citizen Satisfaction",
-      value: "4.6/5",
+      value: `${analyticsData.overview.citizenSatisfaction}/5`,
       change: "+0.3",
       changeType: "increase",
       icon: "Star",
       description: "average rating"
     }
-  ];
+  ] : [];
 
-  // Add mock data for chart components
-  const mockChartData = {
-    categories: [
-      { name: 'Roads & Transport', value: 450, percentage: 35 },
-      { name: 'Water Supply', value: 320, percentage: 25 },
-      { name: 'Sanitation', value: 280, percentage: 22 },
-      { name: 'Electricity', value: 150, percentage: 12 },
-      { name: 'Others', value: 80, percentage: 6 }
-    ],
-    timeline: [
-      { date: '2024-08-17', resolved: 45, pending: 12, total: 57 },
-      { date: '2024-08-24', resolved: 52, pending: 15, total: 67 },
-      { date: '2024-08-31', resolved: 48, pending: 8, total: 56 },
-      { date: '2024-09-07', resolved: 61, pending: 18, total: 79 },
-      { date: '2024-09-14', resolved: 55, pending: 10, total: 65 }
-    ],
-    departments: [
-      { name: 'Public Works', efficiency: 87, resolved: 234, total: 269 },
-      { name: 'Water Board', efficiency: 92, resolved: 195, total: 212 },
-      { name: 'Municipal Corp', efficiency: 78, resolved: 156, total: 200 },
-      { name: 'Transport Dept', efficiency: 85, resolved: 128, total: 151 }
-    ],
-    geographic: [
-      { region: 'North Zone', issues: 245, severity: 'medium' },
-      { region: 'South Zone', issues: 189, severity: 'high' },
-      { region: 'East Zone', issues: 167, severity: 'low' },
-      { region: 'West Zone', issues: 201, severity: 'medium' }
-    ]
-  };
-
-  const mockTableData = [
-    { id: 1, category: 'Roads', status: 'Resolved', priority: 'High', date: '2024-09-15', department: 'Public Works' },
-    { id: 2, category: 'Water', status: 'Pending', priority: 'Medium', date: '2024-09-14', department: 'Water Board' },
-    { id: 3, category: 'Sanitation', status: 'In Progress', priority: 'High', date: '2024-09-13', department: 'Municipal Corp' }
-  ];
+  // Format table data from recent issues
+  const tableData = recentIssues.map(issue => ({
+    id: issue.id,
+    title: issue.title,
+    category: issue.category,
+    status: issue.status,
+    priority: issue.priority,
+    date: new Date(issue.created_at).toLocaleDateString(),
+    department: issue.departments?.name || 'Unassigned',
+    location: issue.address?.split(',')?.[0] || 'Unknown',
+    upvotes: issue.upvoteCount || 0
+  }));
 
   const handleRefreshData = () => {
     setLoading(true);
@@ -133,16 +252,22 @@ const AnalyticsDashboard = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header currentUser={currentUser} notificationCount={5} />
-      <main className="container mx-auto px-4 py-6">
+    <PageLayout backgroundPattern>
+      <div className="container mx-auto px-4 py-6">
         <Breadcrumb />
         
         {/* Page Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8">
+        <motion.div 
+          className="flex flex-col lg:flex-row lg:items-center justify-between mb-8"
+          initial={animations.fadeInUp.initial}
+          animate={animations.fadeInUp.animate}
+          transition={animations.fadeInUp.transition}
+        >
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Analytics Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              Analytics Dashboard
+            </h1>
+            <p className="text-slate-600 text-lg">
               Comprehensive insights into civic issue patterns and resolution performance
             </p>
           </div>
@@ -175,26 +300,42 @@ const AnalyticsDashboard = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          initial={animations.stagger.initial}
+          animate={animations.stagger.animate}
+          transition={animations.stagger.transition}
+        >
           {metricsData?.map((metric, index) => (
-            <MetricsCard
+            <motion.div
               key={index}
-              title={metric?.title}
-              value={metric?.value}
-              change={metric?.change}
-              changeType={metric?.changeType}
-              icon={metric?.icon}
-              description={metric?.description}
-              loading={loading}
-            />
+              initial={animations.fadeInUp.initial}
+              animate={animations.fadeInUp.animate}
+              transition={{ ...animations.fadeInUp.transition, delay: index * 0.1 }}
+            >
+              <MetricsCard
+                title={metric?.title}
+                value={metric?.value}
+                change={metric?.change}
+                changeType={metric?.changeType}
+                icon={metric?.icon}
+                description={metric?.description}
+                loading={loading}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <motion.div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+          initial={animations.fadeInUp.initial}
+          animate={animations.fadeInUp.animate}
+          transition={{ ...animations.fadeInUp.transition, delay: 0.4 }}
+        >
           {/* Issues by Category */}
           <ChartContainer
             title="Issues by Category"
@@ -204,7 +345,10 @@ const AnalyticsDashboard = () => {
             lastUpdated={refreshTimestamp}
             controls={null}
           >
-            <IssuesByCategoryChart loading={loading} data={mockChartData.categories} />
+            <IssuesByCategoryChart 
+              loading={loading} 
+              data={analyticsData?.categories || []} 
+            />
           </ChartContainer>
 
           {/* Resolution Timeline */}
@@ -233,12 +377,21 @@ const AnalyticsDashboard = () => {
               </div>
             }
           >
-            <ResolutionTimelineChart chartType={chartType} loading={loading} data={mockChartData.timeline} />
+            <ResolutionTimelineChart 
+              chartType={chartType} 
+              loading={loading} 
+              data={analyticsData?.timeline || []} 
+            />
           </ChartContainer>
-        </div>
+        </motion.div>
 
         {/* Department Performance & Geographic Heat Map */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <motion.div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+          initial={animations.fadeInUp.initial}
+          animate={animations.fadeInUp.animate}
+          transition={{ ...animations.fadeInUp.transition, delay: 0.6 }}
+        >
           <ChartContainer
             title="Department Performance"
             onExport={() => handleExportChart('department')}
@@ -247,25 +400,40 @@ const AnalyticsDashboard = () => {
             lastUpdated={refreshTimestamp}
             controls={null}
           >
-            <DepartmentPerformanceChart loading={loading} data={mockChartData.departments} />
+            <DepartmentPerformanceChart 
+              loading={loading} 
+              data={analyticsData?.departments || []} 
+            />
           </ChartContainer>
 
           <ChartContainer
-            title="Geographic Heat Map"
+            title="Geographic Distribution"
             onExport={() => handleExportChart('geographic')}
             onRefresh={handleRefreshData}
             loading={loading}
             lastUpdated={refreshTimestamp}
             controls={null}
           >
-            <GeographicHeatMap loading={loading} data={mockChartData.geographic} />
+            <GeographicHeatMap 
+              loading={loading} 
+              data={analyticsData?.geographic || []} 
+            />
           </ChartContainer>
-        </div>
+        </motion.div>
 
         {/* Detailed Data Table */}
-        <div className="mb-8">
-          <DataTable loading={loading} onExport={handleExportData} data={mockTableData} />
-        </div>
+        <motion.div 
+          className="mb-8"
+          initial={animations.fadeInUp.initial}
+          animate={animations.fadeInUp.animate}
+          transition={{ ...animations.fadeInUp.transition, delay: 0.8 }}
+        >
+          <DataTable 
+            loading={loading} 
+            onExport={handleExportData} 
+            data={tableData} 
+          />
+        </motion.div>
 
         {/* Quick Actions */}
         <div className="bg-card border border-border rounded-lg p-6 shadow-card">
@@ -321,16 +489,21 @@ const AnalyticsDashboard = () => {
         </div>
 
         {/* Footer Info */}
-        <div className="mt-8 text-center text-sm text-muted-foreground">
+        <motion.div 
+          className="mt-8 text-center text-sm text-slate-500"
+          initial={animations.fadeIn.initial}
+          animate={animations.fadeIn.animate}
+          transition={{ ...animations.fadeIn.transition, delay: 1.0 }}
+        >
           <p>
             Data updated every 15 minutes • Last refresh: {refreshTimestamp}
           </p>
           <p className="mt-1">
-            © {new Date()?.getFullYear()} Civicare Analytics Dashboard. All rights reserved.
+            © {new Date()?.getFullYear()} CivicCare Analytics Dashboard. All rights reserved.
           </p>
-        </div>
-      </main>
-    </div>
+        </motion.div>
+      </div>
+    </PageLayout>
   );
 };
 

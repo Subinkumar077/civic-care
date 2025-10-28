@@ -1,11 +1,12 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import ModernHeader from '../../components/ui/ModernHeader';
-import ModernFooter from '../../components/ui/ModernFooter';
+import { motion } from 'framer-motion';
+import PageLayout from '../../components/layout/PageLayout';
 import Chatbot from '../../components/ui/Chatbot';
 import ModernHeroSection from './components/ModernHeroSection';
 import ModernFeaturesSection from './components/ModernFeaturesSection';
 import RecentReportsSection from './components/RecentReportsSection';
+import HowItWorksSection from './components/HowItWorksSection';
 import ModernStatsSection from './components/ModernStatsSection';
 import ModernTestimonialsSection from './components/ModernTestimonialsSection';
 import DataSecuritySection from './components/DataSecuritySection';
@@ -13,7 +14,7 @@ import TrustSignalsSection from './components/TrustSignalsSection';
 
 const PublicLandingPage = () => {
   return (
-    <div className="min-h-screen bg-white">
+    <PageLayout backgroundPattern className="bg-white">
       <Helmet>
         <title>CivicCare - Your Voice for a Better Community | Modern Civic Reporting Platform</title>
         <meta name="description" content="Report civic issues instantly with photo evidence and GPS tracking. Track progress in real-time and help build safer neighborhoods through modern civic engagement." />
@@ -26,23 +27,25 @@ const PublicLandingPage = () => {
         <meta name="twitter:description" content="Report civic issues instantly with photo evidence and GPS tracking. Track progress in real-time." />
       </Helmet>
       
-      <ModernHeader />
-      
-      <main className="w-full">
+      <motion.main 
+        className="w-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+      >
         <ModernHeroSection />
         <ModernFeaturesSection />
         <RecentReportsSection />
+        <HowItWorksSection />
         <ModernStatsSection />
         <ModernTestimonialsSection />
         <DataSecuritySection />
         <TrustSignalsSection />
-      </main>
-      
-      <ModernFooter />
+      </motion.main>
       
       {/* Chatbot Support */}
       <Chatbot />
-    </div>
+    </PageLayout>
   );
 };
 

@@ -5,6 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import Button from './Button';
 import Icon from '../AppIcon';
 import LanguageSelector from './LanguageSelector';
+import { smoothScrollToSection, isOnLandingPage } from '../../utils/smoothScroll';
 
 const ModernHeader = () => {
   const location = useLocation();
@@ -27,12 +28,12 @@ const ModernHeader = () => {
   const isActive = (path) => location?.pathname === path;
 
   const navigationLinks = [
-    { path: '/public-landing-page', label: t('nav.home'), icon: 'Home' },
-    { path: '/public-reports-listing', label: t('nav.reports'), icon: 'FileText' },
-    { path: '/how-it-works', label: t('nav.howItWorks'), icon: 'HelpCircle' },
-    { path: '/impact', label: t('nav.impact'), icon: 'TrendingUp' },
-    { path: '/analytics-dashboard', label: t('nav.analytics'), icon: 'BarChart3' },
-    { path: '/support', label: t('nav.support'), icon: 'MessageCircle' }
+    { path: '/public-landing-page', label: t('nav.home'), icon: 'Home', type: 'route' },
+    { path: '/public-reports-listing', label: t('nav.reports'), icon: 'FileText', type: 'smart', sectionId: 'reports' },
+    { path: '/how-it-works', label: t('nav.howItWorks'), icon: 'HelpCircle', type: 'scroll', sectionId: 'how-it-works' },
+    { path: '/impact', label: t('nav.impact'), icon: 'TrendingUp', type: 'scroll', sectionId: 'impacts' },
+    { path: '/analytics-dashboard', label: t('nav.analytics'), icon: 'BarChart3', type: 'route' },
+    { path: '/support', label: t('nav.support'), icon: 'MessageCircle', type: 'route' }
   ];
 
   const handleSignOut = async () => {
@@ -42,6 +43,36 @@ const ModernHeader = () => {
     } catch (error) {
       console.error('Sign out error:', error);
     }
+  };
+
+  const handleNavClick = (link, e) => {
+    // Handle different navigation types
+    if (link.type === 'scroll') {
+      // Pure scroll behavior - always scroll to section on landing page
+      if (isOnLandingPage()) {
+        e.preventDefault();
+        smoothScrollToSection(link.sectionId);
+        setIsMenuOpen(false);
+      } else {
+        // Navigate to landing page first, then scroll
+        navigate('/public-landing-page');
+        setTimeout(() => {
+          smoothScrollToSection(link.sectionId);
+        }, 100);
+        setIsMenuOpen(false);
+      }
+    } else if (link.type === 'smart') {
+      // Smart behavior - scroll if on landing page, navigate if elsewhere
+      if (isOnLandingPage()) {
+        e.preventDefault();
+        smoothScrollToSection(link.sectionId);
+        setIsMenuOpen(false);
+      } else {
+        // Let default navigation happen to the actual page
+        setIsMenuOpen(false);
+      }
+    }
+    // For route type links, let the default Link behavior handle navigation
   };
 
   return (
@@ -79,7 +110,8 @@ const ModernHeader = () => {
             {navigationLinks.map((link) => (
               <Link
                 key={link.path}
-                to={link.path}
+                to={link.type === 'route' || (link.type === 'smart' && !isOnLandingPage()) ? link.path : '#'}
+                onClick={(e) => handleNavClick(link, e)}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 hover:scale-105 ${
                   isActive(link.path)
                     ? 'bg-blue-100 text-blue-700 shadow-md'
@@ -164,8 +196,8 @@ const ModernHeader = () => {
               {navigationLinks.map((link) => (
                 <Link
                   key={link.path}
-                  to={link.path}
-                  onClick={() => setIsMenuOpen(false)}
+                  to={link.type === 'route' || (link.type === 'smart' && !isOnLandingPage()) ? link.path : '#'}
+                  onClick={(e) => handleNavClick(link, e)}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive(link.path)
                       ? 'bg-blue-100 text-blue-700'

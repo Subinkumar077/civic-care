@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
+import { civicIssueService } from '../../../services/civicIssueService';
 
 const ModernStatsSection = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -9,14 +10,54 @@ const ModernStatsSection = () => {
     inProgressIssues: 0,
     activeUsers: 0
   });
+  const [finalStats, setFinalStats] = useState({
+    totalIssues: 0,
+    resolvedIssues: 0,
+    inProgressIssues: 0,
+    activeUsers: 0
+  });
   const sectionRef = useRef(null);
 
-  const finalStats = {
-    totalIssues: 1247,
-    resolvedIssues: 892,
-    inProgressIssues: 234,
-    activeUsers: 3456
-  };
+  // Load real stats data
+  useEffect(() => {
+    const loadRealStats = async () => {
+      try {
+        console.log('📊 Stats Section: Loading real stats from Supabase...');
+        
+        const { data: stats, error } = await civicIssueService.getIssuesStats();
+        
+        if (error) {
+          console.error('📊 Error loading stats:', error);
+          // Use fallback stats
+          setFinalStats({
+            totalIssues: 0,
+            resolvedIssues: 0,
+            inProgressIssues: 0,
+            activeUsers: 0
+          });
+        } else {
+          console.log('📊 Stats Section: Loaded real stats:', stats);
+          const realStats = {
+            totalIssues: stats.total || 0,
+            resolvedIssues: stats.byStatus?.resolved || 0,
+            inProgressIssues: stats.byStatus?.in_progress || 0,
+            activeUsers: Math.floor((stats.total || 0) * 0.7) // Estimate active users
+          };
+          setFinalStats(realStats);
+        }
+      } catch (error) {
+        console.error('📊 Error loading real stats:', error);
+        setFinalStats({
+          totalIssues: 0,
+          resolvedIssues: 0,
+          inProgressIssues: 0,
+          activeUsers: 0
+        });
+      }
+    };
+    
+    loadRealStats();
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -101,7 +142,7 @@ const ModernStatsSection = () => {
   ];
 
   return (
-    <section ref={sectionRef} className="py-20 bg-gradient-to-br from-slate-50 to-blue-50">
+    <section id="impacts" ref={sectionRef} className="py-20 bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="container mx-auto px-6">
         {/* Section Header */}
         <div className={`text-center mb-16 transition-all duration-1000 transform ${

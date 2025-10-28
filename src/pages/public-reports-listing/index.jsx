@@ -1,20 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../components/ui/Header';
+import { motion } from 'framer-motion';
+import PageLayout from '../../components/layout/PageLayout';
 import FilterToolbar from './components/FilterToolbar';
 import IssueGrid from './components/IssueGrid';
 import MapView from './components/MapView';
 import Pagination from './components/Pagination';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCivicIssues } from '../../hooks/useCivicIssues';
+import { civicIssueService } from '../../services/civicIssueService';
+import { useTheme } from '../../contexts/ThemeContext';
 import Icon from '../../components/AppIcon';
 
 const PublicReportsListing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { animations } = useTheme();
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'map'
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [issues, setIssues] = useState([]);
+  const [stats, setStats] = useState(null);
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -25,8 +32,68 @@ const PublicReportsListing = () => {
     sortBy: 'newest'
   });
 
-  // Use civic issues hook with filters
-  const { issues, loading, error, stats, voteOnIssue } = useCivicIssues(filters);
+  // Load issues and stats
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log('📋 Reports Listing: Loading real data from Supabase...');
+        
+        // Get real data from Supabase
+        const { data: allIssues, error: issuesError } = await civicIssueService.getIssues(filters);
+        const { data: statsData, error: statsError } = await civicIssueService.getIssuesStats();
+        
+        if (issuesError) {
+          console.error('📋 Error loading issues:', issuesError);
+          setError('Failed to load reports: ' + issuesError);
+          setIssues([]);
+        } else {
+          console.log('📋 Reports Listing: Loaded', allIssues?.length || 0, 'real issues');
+          console.log('🔗 Real issue IDs:', allIssues?.slice(0, 6).map(i => i.id) || []);
+          setIssues(allIssues || []);
+        }
+        
+        if (statsError) {
+          console.error('📊 Error loading stats:', statsError);
+        } else {
+          setStats(statsData);
+        }
+      } catch (err) {
+        console.error('📋 Error loading data:', err);
+        setError('Failed to load reports');
+        setIssues([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [filters.category, filters.status, filters.priority]);
+
+  // Vote on issue function
+  const voteOnIssue = async (issueId, voteType) => {
+    try {
+      const result = await civicIssueService.voteOnIssue(issueId, voteType);
+      
+      if (result.error) {
+        return { success: false, error: result.error };
+      }
+      
+      // Refresh the specific issue to get updated vote count
+      const { data: updatedIssue } = await civicIssueService.getIssueById(issueId);
+      if (updatedIssue) {
+        setIssues(prev => prev.map(issue => 
+          issue.id === issueId ? updatedIssue : issue
+        ));
+      }
+      
+      return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
 
   // Calculate pagination
   const totalItems = issues?.length || 0;
@@ -113,15 +180,21 @@ const PublicReportsListing = () => {
   const finalTotalPages = Math.ceil(processedIssues?.length / itemsPerPage);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <PageLayout backgroundPattern>
       <div className="container mx-auto px-4 py-6">
         {/* Header Section */}
-        <div className="mb-6">
+        <motion.div 
+          className="mb-6"
+          initial={animations.fadeInUp.initial}
+          animate={animations.fadeInUp.animate}
+          transition={animations.fadeInUp.transition}
+        >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-text-primary">Public Reports</h1>
-              <p className="text-muted-foreground mt-1">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Public Reports
+              </h1>
+              <p className="text-slate-600 mt-1 text-lg">
                 Browse and track community issues reported by residents
               </p>
             </div>
@@ -153,26 +226,48 @@ const PublicReportsListing = () => {
 
           {/* Statistics */}
           {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-card border border-border rounded-lg p-4">
-                <div className="text-2xl font-bold text-text-primary">{stats?.total}</div>
-                <div className="text-sm text-muted-foreground">Total Reports</div>
-              </div>
-              <div className="bg-card border border-border rounded-lg p-4">
-                <div className="text-2xl font-bold text-green-600">{stats?.byStatus?.resolved || 0}</div>
-                <div className="text-sm text-muted-foreground">Resolved</div>
-              </div>
-              <div className="bg-card border border-border rounded-lg p-4">
-                <div className="text-2xl font-bold text-yellow-600">{stats?.byStatus?.in_progress || 0}</div>
-                <div className="text-sm text-muted-foreground">In Progress</div>
-              </div>
-              <div className="bg-card border border-border rounded-lg p-4">
-                <div className="text-2xl font-bold text-blue-600">{stats?.recentCount}</div>
-                <div className="text-sm text-muted-foreground">This Week</div>
-              </div>
-            </div>
+            <motion.div 
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+              initial={animations.stagger.initial}
+              animate={animations.stagger.animate}
+              transition={animations.stagger.transition}
+            >
+              {[
+                { label: 'Total Reports', value: stats.total, color: 'text-slate-800' },
+                { label: 'Resolved', value: stats.byStatus?.resolved || 0, color: 'text-green-600' },
+                { label: 'In Progress', value: stats.byStatus?.in_progress || 0, color: 'text-yellow-600' },
+                { label: 'This Week', value: stats.recentCount, color: 'text-blue-600' }
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  initial={animations.fadeInUp.initial}
+                  animate={animations.fadeInUp.animate}
+                  transition={{ ...animations.fadeInUp.transition, delay: index * 0.1 }}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className={`text-2xl font-bold ${stat.color}`}>{stat.value.toLocaleString()}</div>
+                  <div className="text-sm text-slate-500">{stat.label}</div>
+                </motion.div>
+              ))}
+            </motion.div>
           )}
-        </div>
+        </motion.div>
+
+        {/* Data Sync Status */}
+        {!loading && issues.length > 0 && (
+          <motion.div 
+            className="mb-4 flex justify-center"
+            initial={animations.fadeIn.initial}
+            animate={animations.fadeIn.animate}
+            transition={{ ...animations.fadeIn.transition, delay: 0.3 }}
+          >
+            <div className="inline-flex items-center px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm border border-green-200">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+              Data synchronized with Issue Map & Analytics • {issues.length} total issues
+            </div>
+          </motion.div>
+        )}
 
         {/* Filter Toolbar */}
         <FilterToolbar
@@ -265,7 +360,7 @@ const PublicReportsListing = () => {
           </>
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

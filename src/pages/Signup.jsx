@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import Header from '../components/ui/Header';
+import { useTheme } from '../contexts/ThemeContext';
+import PageLayout from '../components/layout/PageLayout';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import AnimatedCard from '../components/ui/AnimatedCard';
 import Icon from '../components/AppIcon';
 
 const Signup = () => {
@@ -91,6 +94,16 @@ const Signup = () => {
 
     try {
       console.log('🚀 Starting signup process for:', formData?.email);
+
+      // Check if supabase is configured
+      if (!supabase) {
+        // Demo mode
+        setSuccessMessage('🎉 Demo account created successfully! Redirecting...');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+        return;
+      }
 
       // Step 1: Create the user account
       const { data, error } = await supabase?.auth?.signUp({
@@ -210,25 +223,41 @@ const Signup = () => {
     }
   };
 
+  const { animations, hoverEffects } = useTheme();
+
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <PageLayout showFooter={false} backgroundPattern>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <motion.div 
+            className="text-center mb-8"
+            initial={animations.fadeInDown.initial}
+            animate={animations.fadeInDown.animate}
+            transition={animations.fadeInDown.transition}
+          >
+            <motion.div 
+              className="w-16 h-16 bg-gradient-to-r from-emerald-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
+              {...hoverEffects.glow}
+            >
               <Icon name="UserPlus" size={24} color="white" />
-            </div>
-            <h1 className="text-2xl font-bold text-text-primary mb-2">Create Account</h1>
-            <p className="text-muted-foreground">
-              Join CivicHub to report and track community issues.
+            </motion.div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+              Join CivicCare
+            </h1>
+            <p className="text-slate-600">
+              Create your account to start making a difference in your community
             </p>
-          </div>
+          </motion.div>
 
-          <div className="bg-card border border-border rounded-lg p-6">
+          <AnimatedCard className="p-6" delay={0.2}>
             {/* Success Message */}
             {successMessage && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <motion.div 
+                className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-6"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
                 <div className="flex items-start space-x-3">
                   <Icon name="CheckCircle" size={20} className="text-green-500 mt-0.5" />
                   <div>
@@ -236,7 +265,7 @@ const Signup = () => {
                     <p className="text-sm text-green-700 mt-1">{successMessage}</p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -334,42 +363,57 @@ const Signup = () => {
               />
 
               {/* Submit Button */}
-              <Button
-                type="submit"
-                loading={isSubmitting}
-                disabled={isSubmitting}
-                className="w-full"
-                iconName="UserPlus"
-                iconPosition="left"
-                iconSize={16}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                {isSubmitting ? 'Creating Account...' : 'Create Account'}
-              </Button>
+                <Button
+                  type="submit"
+                  loading={isSubmitting}
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                  iconName="UserPlus"
+                  iconPosition="left"
+                  iconSize={16}
+                >
+                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                </Button>
+              </motion.div>
             </form>
 
             {/* Sign In Link */}
-            <div className="text-center mt-6 pt-6 border-t border-border">
-              <p className="text-sm text-muted-foreground">
+            <motion.div 
+              className="text-center mt-6 pt-6 border-t border-slate-200"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.4 }}
+            >
+              <p className="text-sm text-slate-600">
                 Already have an account?{' '}
                 <Link
                   to="/login"
-                  className="text-primary hover:underline font-medium"
+                  className="text-emerald-600 hover:text-blue-600 font-medium transition-colors duration-200 hover:underline"
                 >
                   Sign in here
                 </Link>
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </AnimatedCard>
 
           {/* Additional Info */}
-          <div className="text-center mt-6">
-            <p className="text-xs text-muted-foreground">
+          <motion.div 
+            className="text-center mt-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.4 }}
+          >
+            <p className="text-xs text-slate-500">
               By creating an account, you agree to our terms of service and privacy policy.
             </p>
-          </div>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/ui/Header';
+import { motion } from 'framer-motion';
+import PageLayout from '../../components/layout/PageLayout';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
@@ -9,10 +10,13 @@ import MapControls from './components/MapControls';
 import MapSearchBar from './components/MapSearchBar';
 import MapLegend from './components/MapLegend';
 import IssueDetailsPanel from './components/IssueDetailsPanel';
+import { civicIssueService } from '../../services/civicIssueService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const InteractiveIssueMap = () => {
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [filteredIssues, setFilteredIssues] = useState([]);
+  const [allIssues, setAllIssues] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState('all');
@@ -21,6 +25,8 @@ const InteractiveIssueMap = () => {
   const [searchLocation, setSearchLocation] = useState(null);
   const [searchRadius, setSearchRadius] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { animations } = useTheme();
 
   // Mock current user for header
   const currentUser = {
@@ -30,205 +36,46 @@ const InteractiveIssueMap = () => {
     role: "resident"
   };
 
-  // Mock issues data
-  const mockIssues = [
-    {
-      id: 1,
-      title: "Large pothole on Main Street causing traffic issues",
-      description: "There's a significant pothole on Main Street near the market area that's causing traffic congestion and vehicle damage. The hole is approximately 2 feet wide and 6 inches deep.",
-      category: "roads",
-      status: "pending",
-      priority: "high",
-      coordinates: { lat: 28.6139, lng: 77.2090 },
-      address: "Main Street, Connaught Place, New Delhi, Delhi 110001",
-      images: ["https://images.pexels.com/photos/1004409/pexels-photo-1004409.jpeg"],
-      reporter: {
-        name: "Amit Sharma",
-        id: 101
-      },
-      reportedAt: "2025-01-15T10:30:00Z",
-      assignedTo: {
-        name: "Roads Department Team A",
-        department: "Public Works Department"
-      },
-      timeline: [
-        {
-          action: "Issue reported by citizen",
-          timestamp: "2025-01-15T10:30:00Z"
-        },
-        {
-          action: "Assigned to Roads Department",
-          timestamp: "2025-01-15T11:15:00Z"
+  // Load real issues data
+  useEffect(() => {
+    const loadIssues = async () => {
+      setIsLoading(true);
+      
+      try {
+        console.log('🗺️ Issue Map: Loading real issues from Supabase...');
+        
+        // Get real data from Supabase
+        const { data: issues, error } = await civicIssueService.getIssues();
+        
+        if (error) {
+          console.error('🗺️ Error loading issues:', error);
+          setAllIssues([]);
+          setFilteredIssues([]);
+        } else {
+          console.log('🗺️ Issue Map: Loaded', issues?.length || 0, 'real issues');
+          console.log('🔗 Real issue IDs:', issues?.slice(0, 6).map(i => i.id) || []);
+          console.log('📍 Real coordinates:', issues?.slice(0, 3).map(i => 
+            `#${i.id}: ${i.latitude || 'no lat'}, ${i.longitude || 'no lng'}`
+          ) || []);
+          
+          setAllIssues(issues || []);
+          setFilteredIssues(issues || []);
         }
-      ],
-      votes: {
-        upvotes: 23,
-        comments: 5
+      } catch (error) {
+        console.error('🗺️ Error loading issues:', error);
+        setAllIssues([]);
+        setFilteredIssues([]);
+      } finally {
+        setIsLoading(false);
       }
-    },
-    {
-      id: 2,
-      title: "Overflowing garbage bin in residential area",
-      description: "The community garbage bin has been overflowing for the past 3 days, creating unhygienic conditions and attracting stray animals.",
-      category: "sanitation",
-      status: "in-progress",
-      priority: "medium",
-      coordinates: { lat: 28.6200, lng: 77.2100 },
-      address: "Sector 15, Rohini, New Delhi, Delhi 110085",
-      images: ["https://images.pexels.com/photos/2827392/pexels-photo-2827392.jpeg"],
-      reporter: {
-        name: "Priya Singh",
-        id: 102
-      },
-      reportedAt: "2025-01-14T14:20:00Z",
-      assignedTo: {
-        name: "Sanitation Team B",
-        department: "Municipal Corporation"
-      },
-      timeline: [
-        {
-          action: "Issue reported",
-          timestamp: "2025-01-14T14:20:00Z"
-        },
-        {
-          action: "Team dispatched for inspection",
-          timestamp: "2025-01-15T09:00:00Z"
-        }
-      ],
-      votes: {
-        upvotes: 15,
-        comments: 3
-      }
-    },
-    {
-      id: 3,
-      title: "Street light not working for over a week",
-      description: "The street light on Park Avenue has been non-functional for more than a week, making the area unsafe during night hours.",
-      category: "utilities",
-      status: "resolved",
-      priority: "medium",
-      coordinates: { lat: 28.6080, lng: 77.2150 },
-      address: "Park Avenue, Lajpat Nagar, New Delhi, Delhi 110024",
-      images: ["https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg"],
-      reporter: {
-        name: "Vikram Gupta",
-        id: 103
-      },
-      reportedAt: "2025-01-10T19:45:00Z",
-      assignedTo: {
-        name: "Electrical Maintenance Team",
-        department: "Delhi Electricity Board"
-      },
-      timeline: [
-        {
-          action: "Issue reported",
-          timestamp: "2025-01-10T19:45:00Z"
-        },
-        {
-          action: "Repair work completed",
-          timestamp: "2025-01-14T16:30:00Z"
-        },
-        {
-          action: "Issue marked as resolved",
-          timestamp: "2025-01-14T17:00:00Z"
-        }
-      ],
-      votes: {
-        upvotes: 8,
-        comments: 2
-      }
-    },
-    {
-      id: 4,
-      title: "Broken footpath creating pedestrian hazard",
-      description: "The footpath near the bus stop has several broken tiles and uneven surfaces, making it dangerous for pedestrians, especially elderly people.",
-      category: "roads",
-      status: "pending",
-      priority: "medium",
-      coordinates: { lat: 28.6250, lng: 77.2050 },
-      address: "Civil Lines, New Delhi, Delhi 110054",
-      images: ["https://images.pexels.com/photos/1108101/pexels-photo-1108101.jpeg"],
-      reporter: {
-        name: "Sunita Devi",
-        id: 104
-      },
-      reportedAt: "2025-01-16T08:15:00Z",
-      timeline: [
-        {
-          action: "Issue reported",
-          timestamp: "2025-01-16T08:15:00Z"
-        }
-      ],
-      votes: {
-        upvotes: 12,
-        comments: 4
-      }
-    },
-    {
-      id: 5,
-      title: "Water leakage from municipal pipeline",
-      description: "There\'s a continuous water leak from the main pipeline causing water wastage and making the road slippery.",
-      category: "utilities",
-      status: "in-progress",
-      priority: "high",
-      coordinates: { lat: 28.6180, lng: 77.2200 },
-      address: "Karol Bagh, New Delhi, Delhi 110005",
-      images: ["https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg"],
-      reporter: {
-        name: "Ramesh Chand",
-        id: 105
-      },
-      reportedAt: "2025-01-15T16:30:00Z",
-      assignedTo: {
-        name: "Water Supply Team",
-        department: "Delhi Jal Board"
-      },
-      timeline: [
-        {
-          action: "Issue reported",
-          timestamp: "2025-01-15T16:30:00Z"
-        },
-        {
-          action: "Emergency team dispatched",
-          timestamp: "2025-01-15T17:00:00Z"
-        }
-      ],
-      votes: {
-        upvotes: 18,
-        comments: 6
-      }
-    },
-    {
-      id: 6,
-      title: "Illegal dumping in park area",
-      description: "Construction waste and household garbage is being illegally dumped in the community park, affecting the environment and children's play area.",
-      category: "environment",
-      status: "pending",
-      priority: "medium",
-      coordinates: { lat: 28.6300, lng: 77.2120 },
-      address: "Model Town, New Delhi, Delhi 110009",
-      images: ["https://images.pexels.com/photos/2827392/pexels-photo-2827392.jpeg"],
-      reporter: {
-        name: "Neha Agarwal",
-        id: 106
-      },
-      reportedAt: "2025-01-16T11:00:00Z",
-      timeline: [
-        {
-          action: "Issue reported",
-          timestamp: "2025-01-16T11:00:00Z"
-        }
-      ],
-      votes: {
-        upvotes: 25,
-        comments: 8
-      }
-    }
-  ];
+    };
+    
+    loadIssues();
+  }, []);
 
   // Filter issues based on selected criteria
   useEffect(() => {
-    let filtered = [...mockIssues];
+    let filtered = [...allIssues];
 
     // Filter by categories
     if (selectedCategories?.length > 0) {
@@ -253,7 +100,7 @@ const InteractiveIssueMap = () => {
       const timeLimit = timeRanges?.[selectedTimeRange];
       if (timeLimit) {
         filtered = filtered?.filter(issue => {
-          const issueDate = new Date(issue.reportedAt);
+          const issueDate = new Date(issue.created_at);
           return (now - issueDate) <= timeLimit;
         });
       }
@@ -262,22 +109,31 @@ const InteractiveIssueMap = () => {
     // Filter by search radius
     if (searchLocation && searchRadius) {
       filtered = filtered?.filter(issue => {
+        // Handle both coordinate formats
+        const issueLat = issue?.latitude || issue?.coordinates?.lat;
+        const issueLng = issue?.longitude || issue?.coordinates?.lng;
+        const searchLat = searchLocation?.coordinates?.lat || searchLocation?.latitude;
+        const searchLng = searchLocation?.coordinates?.lng || searchLocation?.longitude;
+        
+        if (!issueLat || !issueLng || !searchLat || !searchLng) return false;
+        
         const distance = Math.sqrt(
-          Math.pow(issue?.coordinates?.lat - searchLocation?.coordinates?.lat, 2) +
-          Math.pow(issue?.coordinates?.lng - searchLocation?.coordinates?.lng, 2)
+          Math.pow(issueLat - searchLat, 2) +
+          Math.pow(issueLng - searchLng, 2)
         ) * 111; // Rough conversion to km
         return distance <= searchRadius;
       });
     }
 
-    setFilteredIssues(filtered);
-  }, [selectedCategories, selectedStatuses, selectedTimeRange, searchLocation, searchRadius]);
+    // Only show issues with valid coordinates for the map
+    filtered = filtered.filter(issue => 
+      (issue?.latitude && issue?.longitude) || 
+      (issue?.coordinates?.lat && issue?.coordinates?.lng)
+    );
 
-  // Initialize with all issues
-  useEffect(() => {
-    setFilteredIssues(mockIssues);
-    setIsLoading(false);
-  }, []);
+    console.log('🗺️ Filtered issues for map:', filtered.length, 'out of', allIssues.length);
+    setFilteredIssues(filtered);
+  }, [allIssues, selectedCategories, selectedStatuses, selectedTimeRange, searchLocation, searchRadius]);
 
   const handleIssueSelect = (issue) => {
     setSelectedIssue(issue);
@@ -304,26 +160,34 @@ const InteractiveIssueMap = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header currentUser={currentUser} notificationCount={3} />
+      <PageLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <Icon name="Loader2" size={32} className="animate-spin text-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading interactive map...</p>
-          </div>
+          <motion.div 
+            className="text-center"
+            initial={animations.scaleIn.initial}
+            animate={animations.scaleIn.animate}
+            transition={animations.scaleIn.transition}
+          >
+            <Icon name="Loader2" size={32} className="animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-slate-600">Loading interactive map...</p>
+          </motion.div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header currentUser={currentUser} notificationCount={3} />
+    <PageLayout>
       <main className="relative">
         {/* Breadcrumb Navigation */}
-        <div className="container mx-auto px-4 py-4">
+        <motion.div 
+          className="container mx-auto px-4 py-4"
+          initial={animations.fadeInDown.initial}
+          animate={animations.fadeInDown.animate}
+          transition={animations.fadeInDown.transition}
+        >
           <Breadcrumb />
-        </div>
+        </motion.div>
 
         {/* Map Interface */}
         <div className="relative h-[calc(100vh-120px)]">
@@ -399,6 +263,18 @@ const InteractiveIssueMap = () => {
             </div>
           </div>
 
+          {/* Data Sync Indicator */}
+          <div className="absolute top-4 left-4 z-30">
+            <div className="bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+              <div className="flex items-center space-x-2 text-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-slate-600">
+                  {filteredIssues?.length} issues • Synced with Reports
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Mobile Bottom Sheet Trigger */}
           <div className="lg:hidden absolute bottom-20 left-4 right-4">
             <Button
@@ -460,7 +336,7 @@ const InteractiveIssueMap = () => {
           )}
         </div>
       </main>
-    </div>
+    </PageLayout>
   );
 };
 
